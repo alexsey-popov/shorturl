@@ -10,12 +10,12 @@ import (
 
 // Repository - Интерфейс для хранилищ
 type Repository interface {
-	// Set - Фиксирование originalUrl за значением prefix
-	Set(prefix string, originalUrl string) (err error)
-	// Get - Получение originalUrl по значению prefix
-	Get(prefix string) (originalUrl string, err error)
-	// FindFromOriginal - Поиск prefix по значению originalUrl
-	FindFromOriginal(originalUrl string) (prefix string, err error)
+	// Set - Фиксирование originalURL за значением prefix
+	Set(prefix string, originalURL string) (err error)
+	// Get - Получение originalURL по значению prefix
+	Get(prefix string) (originalURL string, err error)
+	// FindFromOriginal - Поиск prefix по значению originalURL
+	FindFromOriginal(originalURL string) (prefix string, err error)
 }
 
 // Shortener - Сервис для сокращения ссылок
@@ -31,25 +31,25 @@ func NewShortener() Shortener {
 }
 
 // Add - Добавление новой ссылки
-func (s Shortener) Add(originalUrl string) (string, error) {
+func (s Shortener) Add(originalURL string) (string, error) {
 	// Проверяем является ли переданная строка корректной ссылкой
-	if _, err := url.ParseRequestURI(originalUrl); err != nil {
+	if _, err := url.ParseRequestURI(originalURL); err != nil {
 		return "", err
 	}
 
-	// Проверяем существование originalUrl в базе
-	prefix, err := s.FindFromOriginal(originalUrl)
+	// Проверяем существование originalURL в базе
+	prefix, err := s.FindFromOriginal(originalURL)
 
-	// Если originalUrl не нашли - добавляем новый элемент
+	// Если originalURL не нашли - добавляем новый элемент
 	if err != nil {
 		prefix = s.getNewPrefix()
 
-		if err = s.Set(prefix, originalUrl); err != nil {
+		if err = s.Set(prefix, originalURL); err != nil {
 			return "", err
 		}
 	}
 
-	return s.GetUrlFromPrefix(prefix), nil
+	return s.GetURLFromPrefix(prefix), nil
 }
 
 // getNewPrefix - Получение нового префикса
@@ -57,12 +57,12 @@ func (s Shortener) getNewPrefix() string {
 	return rand.Text()
 }
 
-// GetUrlFromPrefix - Получение сокращённого url по префиксу
-func (s Shortener) GetUrlFromPrefix(prefix string) string {
-	shortUrl, err := url.JoinPath(config.Protocol, config.ServerAddr, prefix)
+// GetURLFromPrefix - Получение сокращённого url по префиксу
+func (s Shortener) GetURLFromPrefix(prefix string) string {
+	shortURL, err := url.JoinPath(config.Protocol, config.ServerAddr, prefix)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	return shortUrl
+	return shortURL
 }

@@ -2,4 +2,4 @@ package errors
 
 import "errors"
 
-var ErrUrlNotFound = errors.New("url не найден")
+var ErrURLNotFound = errors.New("url не найден")

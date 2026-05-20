@@ -32,13 +32,13 @@ func handleGet(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	originalUrl, err := links.Get(strings.TrimLeft(r.URL.Path, "/"))
+	originalURL, err := links.Get(strings.TrimLeft(r.URL.Path, "/"))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	http.Redirect(rw, r, originalUrl, http.StatusTemporaryRedirect)
+	http.Redirect(rw, r, originalURL, http.StatusTemporaryRedirect)
 }
 
 // handlePost - Обработчик Post запроса
@@ -56,14 +56,14 @@ func handlePost(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Читаем тело запроса (ожидается ссылка)
-	originalUrl, err := io.ReadAll(r.Body)
+	originalURL, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Получаем сокращённую ссылку
-	shortUrl, err := links.Add(string(originalUrl))
+	shortURL, err := links.Add(string(originalURL))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -73,5 +73,5 @@ func handlePost(rw http.ResponseWriter, r *http.Request) {
 
 	rw.WriteHeader(http.StatusCreated)
 
-	rw.Write([]byte(shortUrl))
+	rw.Write([]byte(shortURL))
 }
