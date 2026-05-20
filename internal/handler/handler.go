@@ -3,16 +3,16 @@ package handler
 import (
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
+	"github.com/alexsey-popov/shorturl/internal/service"
 )
 
-// links - Место для хранения ссылок
-var links = make(Shortener)
+// links - Объект для работы со ссылками
+var links = service.NewShortener()
 
-// RouterFunc - определяет хендлер в зависимости от метода запроса
+// RouterFunc - Определение хендлера в зависимости от метода запроса
 func RouterFunc(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -24,7 +24,7 @@ func RouterFunc(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGet - обработчик Get запроса
+// handleGet - Обработчик Get запроса
 func handleGet(rw http.ResponseWriter, r *http.Request) {
 	// Если не передан id - выводим ошибку
 	if r.URL.Path == "/" {
@@ -41,7 +41,7 @@ func handleGet(rw http.ResponseWriter, r *http.Request) {
 	http.Redirect(rw, r, originalUrl, http.StatusTemporaryRedirect)
 }
 
-// handlePost - обработчик Post запроса
+// handlePost - Обработчик Post запроса
 func handlePost(rw http.ResponseWriter, r *http.Request) {
 	// Если передан id - выводим ошибку
 	if r.URL.Path != "/" {
@@ -62,14 +62,12 @@ func handlePost(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Проверка url на корректность
-	if _, err = url.ParseRequestURI(string(originalUrl)); err != nil {
+	// Получаем сокращённую ссылку
+	shortUrl, err := links.Add(string(originalUrl))
+	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	// Получаем сокращённую ссылку
-	shortUrl := links.Add(string(originalUrl))
 
 	rw.Header().Set("Content-Type", config.ContentType)
 
