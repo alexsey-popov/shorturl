@@ -1,96 +1,149 @@
 package handler
 
 import (
-	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
+	"github.com/go-chi/chi/v5"
 )
 
-func TestRouterFunc(t *testing.T) {
+func TestHandlePost(t *testing.T) {
+	type want struct {
+		contentType string
+		statusCode  int
+	}
 	tests := []struct {
-		name           string
-		method         string
-		path           string
-		body           string
-		contentType    string
-		expectedStatus int
-		expectedBody   string
+		name        string
+		contentType string
+		body        string
+		want        want
 	}{
 		{
-			name:           "GET method without ID",
-			method:         http.MethodGet,
-			path:           "/",
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Отсутствует идентификатор ссылки\n",
+			name:        "positive test #1",
+			contentType: "text/plain",
+			body:        "https://practicum.yandex.ru/",
+			want: want{
+				contentType: "text/plain",
+				statusCode:  201,
+			},
 		},
 		{
-			name:           "GET method with invalid ID",
-			method:         http.MethodGet,
-			path:           "/invalid-id",
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "url не найден\n",
+			name:        "negative test #1 - wrong content type",
+			contentType: "application/json",
+			body:        "https://practicum.yandex.ru/",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  400,
+			},
 		},
 		{
-			name:           "POST with valid URL",
-			method:         http.MethodPost,
-			path:           "/",
-			body:           "https://example.com",
-			contentType:    config.ContentType,
-			expectedStatus: http.StatusCreated,
-		},
-		{
-			name:           "POST with invalid content type",
-			method:         http.MethodPost,
-			path:           "/",
-			body:           "https://example.com",
-			contentType:    "application/json",
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Некорректный тип содержимого запроса\n",
-		},
-		{
-			name:           "POST to invalid path",
-			method:         http.MethodPost,
-			path:           "/invalid-path",
-			body:           "https://example.com",
-			contentType:    config.ContentType,
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Некорректный запрос\n",
-		},
-		{
-			name:           "Unsupported HTTP method",
-			method:         http.MethodPut,
-			path:           "/",
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Метод не поддерживается\n",
+			name:        "negative test #2 - invalid url",
+			contentType: "text/plain",
+			body:        "invalid-url",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  400,
+			},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var body io.Reader
-			if tt.body != "" {
-				body = bytes.NewBuffer([]byte(tt.body))
+			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.body))
+			request.Header.Set("Content-Type", tt.contentType)
+			w := httptest.NewRecorder()
+			HandlePost(w, request)
+
+			res := w.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tt.want.statusCode {
+				t.Errorf("HandlePost() status code = %v, want %v", res.StatusCode, tt.want.statusCode)
 			}
 
-			req := httptest.NewRequest(tt.method, tt.path, body)
-			if tt.contentType != "" {
-				req.Header.Set("Content-Type", tt.contentType)
+			if tt.want.contentType != "" {
+				if got := res.Header.Get("Content-Type"); got != tt.want.contentType {
+					t.Errorf("HandlePost() content type = %v, want %v", got, tt.want.contentType)
+				}
 			}
 
-			rr := httptest.NewRecorder()
+			if res.StatusCode == http.StatusCreated {
+				resBody, err := io.ReadAll(res.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(string(resBody), config.Protocol+config.ServerAddr) {
+					t.Errorf("HandlePost() body = %v, want it to contain %v", string(resBody), config.Protocol+config.ServerAddr)
+				}
+			}
+		})
+	}
+}
 
-			RouterFunc(rr, req)
+func TestHandleGet(t *testing.T) {
+	// Pre-seed some data
+	originalURL := "https://practicum.yandex.ru/"
+	shortURL, err := links.Add(originalURL)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-			if rr.Code != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
+	// extract id from shortURL
+	parts := strings.Split(shortURL, "/")
+	id := parts[len(parts)-1]
+
+	type want struct {
+		statusCode int
+		location   string
+	}
+	tests := []struct {
+		name string
+		id   string
+		want want
+	}{
+		{
+			name: "positive test #1",
+			id:   id,
+			want: want{
+				statusCode: 307,
+				location:   originalURL,
+			},
+		},
+		{
+			name: "negative test #1 - non-existent id",
+			id:   "nonexistent",
+			want: want{
+				statusCode: 400,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/"+tt.id, nil)
+
+			// Set chi context for URL parameter
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("id", tt.id)
+			request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, rctx))
+
+			w := httptest.NewRecorder()
+			HandleGet(w, request)
+
+			res := w.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tt.want.statusCode {
+				t.Errorf("HandleGet() status code = %v, want %v", res.StatusCode, tt.want.statusCode)
 			}
 
-			if tt.expectedBody != "" && rr.Body.String() != tt.expectedBody {
-				t.Errorf("expected body %q, got %q", tt.expectedBody, rr.Body.String())
+			if tt.want.location != "" {
+				if got := res.Header.Get("Location"); got != tt.want.location {
+					t.Errorf("HandleGet() location = %v, want %v", got, tt.want.location)
+				}
 			}
 		})
 	}
