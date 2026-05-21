@@ -3,36 +3,20 @@ package handler
 import (
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
+	"github.com/go-chi/chi/v5"
 )
 
 // links - Объект для работы со ссылками
 var links = service.NewShortener()
 
-// RouterFunc - Определение хендлера в зависимости от метода запроса
-func RouterFunc(rw http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		handleGet(rw, r)
-	case http.MethodPost:
-		handlePost(rw, r)
-	default:
-		http.Error(rw, "Метод не поддерживается", http.StatusBadRequest)
-	}
-}
+// HandleGet - Обработчик Get запроса
+func HandleGet(rw http.ResponseWriter, r *http.Request) {
+	prefix := chi.URLParam(r, "id")
 
-// handleGet - Обработчик Get запроса
-func handleGet(rw http.ResponseWriter, r *http.Request) {
-	// Если не передан id - выводим ошибку
-	if r.URL.Path == "/" {
-		http.Error(rw, "Отсутствует идентификатор ссылки", http.StatusBadRequest)
-		return
-	}
-
-	originalURL, err := links.Get(strings.TrimLeft(r.URL.Path, "/"))
+	originalURL, err := links.Get(prefix)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -41,14 +25,8 @@ func handleGet(rw http.ResponseWriter, r *http.Request) {
 	http.Redirect(rw, r, originalURL, http.StatusTemporaryRedirect)
 }
 
-// handlePost - Обработчик Post запроса
-func handlePost(rw http.ResponseWriter, r *http.Request) {
-	// Если передан id - выводим ошибку
-	if r.URL.Path != "/" {
-		http.Error(rw, "Некорректный запрос", http.StatusBadRequest)
-		return
-	}
-
+// HandlePost - Обработчик Post запроса
+func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != config.ContentType {
 		http.Error(rw, "Некорректный тип содержимого запроса", http.StatusBadRequest)
