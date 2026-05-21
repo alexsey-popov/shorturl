@@ -48,8 +48,13 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	rw.Header().Set("Content-Type", config.ContentType)
-
 	rw.WriteHeader(http.StatusCreated)
-
 	rw.Write([]byte(shortURL))
+}
+
+// HandleFails - обработчик для ошибочных запросов
+func HandleFails(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", config.ContentType)
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte("Некорректный запрос"))
 }

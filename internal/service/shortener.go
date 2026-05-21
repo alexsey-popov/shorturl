@@ -59,7 +59,7 @@ func (s Shortener) getNewPrefix() string {
 
 // GetURLFromPrefix - Получение сокращённого url по префиксу
 func (s Shortener) GetURLFromPrefix(prefix string) string {
-	shortURL, err := url.JoinPath(config.Protocol, config.ServerAddr, prefix)
+	shortURL, err := url.JoinPath(config.Scheme+"://", config.Host, prefix)
 	if err != nil {
 		panic(err.Error())
 	}
