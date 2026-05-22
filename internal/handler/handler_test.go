@@ -86,6 +86,7 @@ func TestHandlePost(t *testing.T) {
 			HandlePost(w, r)
 
 			res := w.Result()
+			defer res.Body.Close()
 
 			if statusCode := res.StatusCode; statusCode != tt.want.statusCode {
 				t.Errorf("StatusCode get %v, want %v", statusCode, tt.want.statusCode)
@@ -149,6 +150,7 @@ func TestHandleGet(t *testing.T) {
 			HandleGet(w, r)
 
 			res := w.Result()
+			defer res.Body.Close()
 
 			if statusCode := res.StatusCode; statusCode != tt.want.statusCode {
 				t.Errorf("StatusCode get %v, want %v", statusCode, tt.want.statusCode)
