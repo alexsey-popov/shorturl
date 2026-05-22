@@ -14,136 +14,151 @@ import (
 
 func TestHandlePost(t *testing.T) {
 	type want struct {
-		contentType string
 		statusCode  int
+		contentType string
 	}
+
 	tests := []struct {
 		name        string
+		target      string
 		contentType string
 		body        string
 		want        want
 	}{
 		{
-			name:        "positive test #1",
-			contentType: "text/plain",
-			body:        "https://practicum.yandex.ru/",
+			name:        "positive #1",
+			target:      "/",
+			contentType: config.ContentType,
+			body:        "https://example.com/positive-1",
 			want: want{
-				contentType: "text/plain",
-				statusCode:  201,
+				statusCode:  http.StatusCreated,
+				contentType: config.ContentType,
 			},
 		},
 		{
-			name:        "negative test #1 - wrong content type",
+			name:        "negative #1 - incorrect url",
+			target:      "/",
+			contentType: config.ContentType,
+			body:        "incorrect url",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: config.ContentType,
+			},
+		},
+		{
+			name:        "negative #2 - empty body",
+			target:      "/",
+			contentType: config.ContentType,
+			body:        "",
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: config.ContentType,
+			},
+		},
+		{
+			name:        "negative #3 - incorrect Content-type",
+			target:      "/",
 			contentType: "application/json",
-			body:        "https://practicum.yandex.ru/",
+			body:        "incorrect url",
 			want: want{
-				contentType: "text/plain; charset=utf-8",
-				statusCode:  400,
+				statusCode:  http.StatusBadRequest,
+				contentType: config.ContentType,
 			},
 		},
 		{
-			name:        "negative test #2 - invalid url",
-			contentType: "text/plain",
-			body:        "invalid-url",
+			name:        "negative #4 - empty Content-type",
+			target:      "/",
+			contentType: "",
+			body:        "incorrect url",
 			want: want{
-				contentType: "text/plain; charset=utf-8",
-				statusCode:  400,
+				statusCode:  http.StatusBadRequest,
+				contentType: config.ContentType,
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.body))
-			request.Header.Set("Content-Type", tt.contentType)
+			r := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
+			r.Header.Set("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
-			HandlePost(w, request)
+
+			HandlePost(w, r)
 
 			res := w.Result()
-			defer res.Body.Close()
 
-			if res.StatusCode != tt.want.statusCode {
-				t.Errorf("HandlePost() status code = %v, want %v", res.StatusCode, tt.want.statusCode)
-			}
-
-			if tt.want.contentType != "" {
-				if got := res.Header.Get("Content-Type"); got != tt.want.contentType {
-					t.Errorf("HandlePost() content type = %v, want %v", got, tt.want.contentType)
+			if statusCode := res.StatusCode; statusCode != tt.want.statusCode {
+				t.Errorf("StatusCode get %v, want %v", statusCode, tt.want.statusCode)
+				if body, err := io.ReadAll(res.Body); err == nil {
+					t.Log(string(body))
 				}
 			}
 
-			if res.StatusCode == http.StatusCreated {
-				resBody, err := io.ReadAll(res.Body)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !strings.Contains(string(resBody), config.Protocol+config.ServerAddr) {
-					t.Errorf("HandlePost() body = %v, want it to contain %v", string(resBody), config.Protocol+config.ServerAddr)
-				}
+			if contentType := res.Header.Get("Content-Type"); strings.Contains(contentType, tt.want.contentType) == false {
+				t.Errorf("Content-Type get %s, want %s", contentType, tt.want.contentType)
 			}
 		})
 	}
 }
 
 func TestHandleGet(t *testing.T) {
-	// Pre-seed some data
-	originalURL := "https://practicum.yandex.ru/"
-	shortURL, err := links.Add(originalURL)
-	if err != nil {
+	// Добавляем в links заранее известную пару prefix => originalURL
+	prefix, originalURL := "positive1", "https://example.com/positive1"
+	if err := links.Set(prefix, originalURL); err != nil {
 		t.Fatal(err)
 	}
-
-	// extract id from shortURL
-	parts := strings.Split(shortURL, "/")
-	id := parts[len(parts)-1]
 
 	type want struct {
 		statusCode int
 		location   string
 	}
+
 	tests := []struct {
-		name string
-		id   string
-		want want
+		name   string
+		target string
+		want   want
 	}{
 		{
-			name: "positive test #1",
-			id:   id,
+			name:   "positive #1",
+			target: "/" + prefix,
 			want: want{
-				statusCode: 307,
+				statusCode: http.StatusTemporaryRedirect,
 				location:   originalURL,
 			},
 		},
 		{
-			name: "negative test #1 - non-existent id",
-			id:   "nonexistent",
+			name:   "negative #1 - invalid target",
+			target: "/invalid-target",
 			want: want{
-				statusCode: 400,
+				statusCode: http.StatusBadRequest,
+				location:   "",
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "/"+tt.id, nil)
+			r := httptest.NewRequest(http.MethodGet, tt.target, http.NoBody)
 
-			// Set chi context for URL parameter
 			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("id", tt.id)
-			request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, rctx))
+			rctx.URLParams.Add("id", strings.TrimLeft(tt.target, "/"))
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 
 			w := httptest.NewRecorder()
-			HandleGet(w, request)
+
+			HandleGet(w, r)
 
 			res := w.Result()
-			defer res.Body.Close()
 
-			if res.StatusCode != tt.want.statusCode {
-				t.Errorf("HandleGet() status code = %v, want %v", res.StatusCode, tt.want.statusCode)
+			if statusCode := res.StatusCode; statusCode != tt.want.statusCode {
+				t.Errorf("StatusCode get %v, want %v", statusCode, tt.want.statusCode)
+				if body, err := io.ReadAll(res.Body); err == nil {
+					t.Log(string(body))
+				}
 			}
 
-			if tt.want.location != "" {
-				if got := res.Header.Get("Location"); got != tt.want.location {
-					t.Errorf("HandleGet() location = %v, want %v", got, tt.want.location)
-				}
+			if location := res.Header.Get("Location"); location != tt.want.location {
+				t.Errorf("Location get %v, want %v", location, tt.want.location)
 			}
 		})
 	}

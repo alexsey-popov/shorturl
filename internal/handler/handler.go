@@ -2,10 +2,12 @@ package handler
 
 import (
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
+	"github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -18,6 +20,7 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 
 	originalURL, err := links.Get(prefix)
 	if err != nil {
+		log.Println(prefix)
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -29,7 +32,7 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != config.ContentType {
-		http.Error(rw, "Некорректный тип содержимого запроса", http.StatusBadRequest)
+		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -56,5 +59,5 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 func HandleFails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", config.ContentType)
 	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte("Некорректный запрос"))
+	w.Write([]byte(errors.ErrInvalidRequest.Error()))
 }

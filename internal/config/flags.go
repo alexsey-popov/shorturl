@@ -1,10 +1,11 @@
 package config
 
 import (
-	"errors"
 	"flag"
 	"net"
 	"net/url"
+
+	"github.com/alexsey-popov/shorturl/pkg/errors"
 )
 
 var (
@@ -19,7 +20,7 @@ func init() {
 		// Проверка корректности указанного ip
 		serverAddr, err := net.ResolveTCPAddr("tcp", value)
 		if err != nil {
-			return errors.New("Некорректный ip")
+			return errors.ErrInvalidAddress
 		}
 
 		NetAddress = serverAddr.String()
@@ -28,7 +29,7 @@ func init() {
 	})
 
 	// Обрабатывает флаг b
-	flag.Func("b", "Базовый адрес сервера в формате https://example.com", func(value string) error {
+	flag.Func("b", "Базовый адрес сервера в формате http://localhost:8080", func(value string) error {
 		parsedURL, err := url.ParseRequestURI(value)
 		if err != nil {
 			return err
