@@ -13,14 +13,14 @@ type InMemory struct {
 }
 
 // New - Конструктор
-func New() InMemory {
-	return InMemory{
+func New() *InMemory {
+	return &InMemory{
 		data: make(map[string]string),
 	}
 }
 
 // Set - Фиксируем originalURL за значением prefix
-func (im InMemory) Set(prefix string, originalURL string) (err error) {
+func (im *InMemory) Set(prefix string, originalURL string) (err error) {
 	// Защищаем map от одновременной записи из разных горутин
 	im.Lock()
 	defer im.Unlock()
@@ -31,7 +31,7 @@ func (im InMemory) Set(prefix string, originalURL string) (err error) {
 }
 
 // Get - получение ссылки на редирект по префиксу
-func (im InMemory) Get(prefix string) (string, error) {
+func (im *InMemory) Get(prefix string) (string, error) {
 	// Защищаем map от одновременного чтения из разных горутин
 	im.RLock()
 	defer im.RUnlock()
@@ -44,7 +44,7 @@ func (im InMemory) Get(prefix string) (string, error) {
 }
 
 // FindFromOriginal - Поиск prefix по originalURL
-func (im InMemory) FindFromOriginal(originalURL string) (string, error) {
+func (im *InMemory) FindFromOriginal(originalURL string) (string, error) {
 	// Защищаем map от одновременного чтения из разных горутин
 	im.RLock()
 	defer im.RUnlock()
@@ -59,7 +59,7 @@ func (im InMemory) FindFromOriginal(originalURL string) (string, error) {
 }
 
 // String - приведение структуры к строке
-func (im InMemory) String() string {
+func (im *InMemory) String() string {
 	// Защищаем map от одновременного чтения из разных горутин
 	im.RLock()
 	defer im.RUnlock()
