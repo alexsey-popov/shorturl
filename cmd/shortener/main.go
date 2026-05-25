@@ -20,7 +20,7 @@ func main() {
 	r.MethodNotAllowed(handler.HandleFails)
 
 	// Поднимает сервер
-	err := http.ListenAndServe(config.NetAddress, r)
+	err := http.ListenAndServe(config.Server.NetAddress, r)
 	if err != nil {
 		panic(err)
 	}

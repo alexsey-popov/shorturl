@@ -28,31 +28,31 @@ func TestHandlePost(t *testing.T) {
 		{
 			name:        "positive #1",
 			target:      "/",
-			contentType: config.ContentType,
+			contentType: config.Server.ContentType,
 			body:        "https://example.com/positive-1",
 			want: want{
 				statusCode:  http.StatusCreated,
-				contentType: config.ContentType,
+				contentType: config.Server.ContentType,
 			},
 		},
 		{
 			name:        "negative #1 - incorrect url",
 			target:      "/",
-			contentType: config.ContentType,
+			contentType: config.Server.ContentType,
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.ContentType,
+				contentType: config.Server.ContentType,
 			},
 		},
 		{
 			name:        "negative #2 - empty body",
 			target:      "/",
-			contentType: config.ContentType,
+			contentType: config.Server.ContentType,
 			body:        "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.ContentType,
+				contentType: config.Server.ContentType,
 			},
 		},
 		{
@@ -62,7 +62,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.ContentType,
+				contentType: config.Server.ContentType,
 			},
 		},
 		{
@@ -72,7 +72,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.ContentType,
+				contentType: config.Server.ContentType,
 			},
 		},
 	}

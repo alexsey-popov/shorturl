@@ -31,7 +31,7 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 // HandlePost - Обработчик Post запроса
 func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
-	if r.Header.Get("Content-Type") != config.ContentType {
+	if r.Header.Get("Content-Type") != config.Server.ContentType {
 		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
@@ -50,14 +50,14 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rw.Header().Set("Content-Type", config.ContentType)
+	rw.Header().Set("Content-Type", config.Server.ContentType)
 	rw.WriteHeader(http.StatusCreated)
 	rw.Write([]byte(shortURL))
 }
 
 // HandleFails - обработчик для ошибочных запросов
 func HandleFails(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", config.ContentType)
+	w.Header().Set("Content-Type", config.Server.ContentType)
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte(errors.ErrInvalidRequest.Error()))
 }

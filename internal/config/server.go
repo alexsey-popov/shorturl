@@ -8,11 +8,18 @@ import (
 	"github.com/alexsey-popov/shorturl/pkg/errors"
 )
 
-var (
-	Scheme     = "http"
-	Host       = "localhost:8080"
-	NetAddress = Host
-)
+type ServerConf struct {
+	Scheme      string
+	Host        string
+	NetAddress  string
+	ContentType string
+}
+
+var Server ServerConf
+
+func init() {
+	Server = New()
+}
 
 func init() {
 	// Обрабатывает флаг a
@@ -23,7 +30,7 @@ func init() {
 			return errors.ErrInvalidAddress
 		}
 
-		NetAddress = serverAddr.String()
+		Server.NetAddress = serverAddr.String()
 
 		return nil
 	})
@@ -35,9 +42,23 @@ func init() {
 			return err
 		}
 
-		Scheme = parsedURL.Scheme
-		Host = parsedURL.Host
+		if parsedURL.Scheme == "" || parsedURL.Host == "" {
+			return errors.ErrInvalidAddress
+		}
+
+		Server.Scheme = parsedURL.Scheme
+		Server.Host = parsedURL.Host
 
 		return nil
 	})
+}
+
+// New - Конструктор
+func New() ServerConf {
+	return ServerConf{
+		Scheme:      "http",
+		Host:        "localhost:8080",
+		NetAddress:  "localhost:8080",
+		ContentType: "text/plain",
+	}
 }

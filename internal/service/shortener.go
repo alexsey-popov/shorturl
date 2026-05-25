@@ -26,7 +26,7 @@ type Shortener struct {
 // NewShortener - Конструктор для Shortener
 func NewShortener() Shortener {
 	return Shortener{
-		Repository: make(inmemory.InMemory),
+		Repository: inmemory.New(),
 	}
 }
 
@@ -59,7 +59,7 @@ func (s Shortener) getNewPrefix() string {
 
 // GetURLFromPrefix - Получение сокращённого url по префиксу
 func (s Shortener) GetURLFromPrefix(prefix string) string {
-	shortURL, err := url.JoinPath(config.Scheme+"://", config.Host, prefix)
+	shortURL, err := url.JoinPath(config.Server.Scheme+"://", config.Server.Host, prefix)
 	if err != nil {
 		panic(err.Error())
 	}
