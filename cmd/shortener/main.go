@@ -9,6 +9,9 @@ import (
 )
 
 func main() {
+	// Парсим конфиг значениями из флагов и переменных окружения
+	config.Parse()
+
 	// Объявляем роуты
 	r := chi.NewRouter()
 	r.Post("/", handler.HandlePost)
