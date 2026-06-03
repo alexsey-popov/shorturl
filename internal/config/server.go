@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	ENV_SERVER_ADDRESS  = "SERVER_ADDRESS"
-	ENV_BASE_URL        = "BASE_URL"
-	FLAG_SERVER_ADDRESS = "a"
-	FLAG_BASE_URL       = "b"
+	EnvServerAddress  = "SERVER_ADDRESS"
+	EnvBaseURL        = "BASE_URL"
+	FlagServerAddress = "a"
+	FlagBaseURL       = "b"
 )
 
 type ServerConf struct {
@@ -35,10 +35,10 @@ func init() {
 // Шаг 2. Заполняем конфиг значениями из консольных флагов
 func init() {
 	// Обрабатывает флаг с адресом сервера
-	flag.Func(FLAG_SERVER_ADDRESS, "Адрес прослушиваемого сервера в формате ip:port", Server.SetServerAddress)
+	flag.Func(FlagServerAddress, "Адрес прослушиваемого сервера в формате ip:port", Server.SetServerAddress)
 
 	// Обрабатывает флаг с URL сервера
-	flag.Func(FLAG_BASE_URL, "Базовый адрес сервера в формате http://localhost:8080", Server.SetBaseURL)
+	flag.Func(FlagBaseURL, "Базовый адрес сервера в формате http://localhost:8080", Server.SetBaseURL)
 
 	// Парсим аргументы командной строки
 	flag.Parse()
@@ -47,14 +47,14 @@ func init() {
 // Шаг 3. Заполняем значения из переменных окружения
 func init() {
 	// Адрес сервера
-	if serverAddress := os.Getenv(ENV_SERVER_ADDRESS); serverAddress != "" {
+	if serverAddress := os.Getenv(EnvServerAddress); serverAddress != "" {
 		if err := Server.SetServerAddress(serverAddress); err != nil {
 			log.Fatal(err)
 		}
 	}
 
 	// URL сервера
-	if baseURL := os.Getenv(ENV_BASE_URL); baseURL != "" {
+	if baseURL := os.Getenv(EnvBaseURL); baseURL != "" {
 		if err := Server.SetBaseURL(baseURL); err != nil {
 			log.Fatal(err)
 		}
