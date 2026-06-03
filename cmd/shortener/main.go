@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"net/http"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
@@ -10,9 +9,6 @@ import (
 )
 
 func main() {
-	// Парсим аргументы командной строки
-	flag.Parse()
-
 	// Объявляем роуты
 	r := chi.NewRouter()
 	r.Post("/", handler.HandlePost)
