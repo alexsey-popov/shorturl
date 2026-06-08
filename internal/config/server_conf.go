@@ -11,10 +11,11 @@ import (
 )
 
 type ServerConf struct {
-	Scheme      string
-	Host        string
-	NetAddress  string
-	ContentType string
+	Scheme          string
+	Host            string
+	NetAddress      string
+	ContentType     string
+	ContentTypeJson string
 }
 
 // SetServerAddress - изменение адреса сервера
@@ -50,10 +51,11 @@ func (s ServerConf) SetBaseURL(value string) error {
 // New - Конструктор со значениями по умолчанию
 func New() ServerConf {
 	return ServerConf{
-		Scheme:      "http",
-		Host:        "localhost:8080",
-		NetAddress:  "localhost:8080",
-		ContentType: "text/plain",
+		Scheme:          "http",
+		Host:            "localhost:8080",
+		NetAddress:      "localhost:8080",
+		ContentType:     "text/plain",
+		ContentTypeJson: "application/json",
 	}
 }
 

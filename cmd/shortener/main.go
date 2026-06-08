@@ -31,6 +31,7 @@ func main() {
 	r.Use(logger.LogMiddleware)
 
 	r.Post("/", handler.HandlePost)
+	r.Post("/api/shorten", handler.HandlePostJson)
 	r.Get("/{id}", handler.HandleGet)
 	r.MethodNotAllowed(handler.HandleFails)
 

@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
@@ -20,7 +20,6 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 
 	originalURL, err := links.Get(prefix)
 	if err != nil {
-		log.Println(prefix)
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -53,6 +52,46 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", config.Server.ContentType)
 	rw.WriteHeader(http.StatusCreated)
 	rw.Write([]byte(shortURL))
+}
+
+// HandlePostJson - Обработчик для запроса Post /api/shorten
+func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
+	// Некорректный content-type - ошибка
+	if r.Header.Get("Content-Type") != config.Server.ContentTypeJson {
+		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Читаем URL из json
+	request := struct {
+		Url string `json:"url"`
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+	}
+
+	// Получаем сокращённую ссылку
+	shortURL, err := links.Add(request.Url)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Подготавливаем json ответ
+	response, err := json.Marshal(
+		struct {
+			Result string `json:"result"`
+		}{
+			Result: shortURL,
+		},
+	)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+	}
+
+	rw.Header().Set("Content-Type", config.Server.ContentTypeJson)
+	rw.WriteHeader(http.StatusCreated)
+	rw.Write(response)
 }
 
 // HandleFails - обработчик для ошибочных запросов
