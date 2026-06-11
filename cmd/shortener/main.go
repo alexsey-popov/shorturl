@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/alexsey-popov/shorturl/internal/compact"
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/handler"
 	"github.com/alexsey-popov/shorturl/internal/logger"
@@ -21,14 +22,17 @@ func main() {
 	}
 	defer l.Sync()
 
-	// Передаём его версию в нет logger
+	// Передаём созданный логер в пакет
 	logger.Sugar = l.Sugar()
 
 	// Объявляем роуты
 	r := chi.NewRouter()
 
-	// Оборачиваем все запросы в LogMiddleware
-	r.Use(logger.LogMiddleware)
+	// Логируем результаты запросов LogMiddleware
+	r.Use(logger.HTTPMiddleware)
+
+	// Разворачиваем и сокращаём данные
+	r.Use(compact.HTTPMiddleware)
 
 	r.Post("/", handler.HandlePost)
 	r.Post("/api/shorten", handler.HandlePostJson)

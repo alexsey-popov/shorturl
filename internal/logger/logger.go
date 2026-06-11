@@ -43,8 +43,8 @@ func (drw *DetailsResponseWriter) WriteHeader(statusCode int) {
 	drw.details.status = statusCode
 }
 
-// LogMiddleware - Посредник для логирования обрабатываемых запросов
-func LogMiddleware(h http.Handler) http.Handler {
+// HTTPMiddleware - Посредник для логирования запросов
+func HTTPMiddleware(h http.Handler) http.Handler {
 	logFn := func(rw http.ResponseWriter, r *http.Request) {
 		url, method, timeStart := r.URL.String(), r.Method, time.Now()
 
