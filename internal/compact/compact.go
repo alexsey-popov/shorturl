@@ -24,7 +24,7 @@ func HTTPMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Распаковываем данные только если они подходят по формату
 		requestContentType := r.Header.Get("Content-Type")
-		if requestContentType == "application/json" || requestContentType == "text/plain" {
+		if requestContentType == "application/json" || requestContentType == "text/html" {
 			// Проверяем наличие сжатия данных на входе
 			contentEncoding := r.Header.Get("Content-Encoding")
 			if strings.Contains(contentEncoding, "gzip") {
@@ -40,7 +40,7 @@ func HTTPMiddleware(handler http.Handler) http.Handler {
 
 		// Запаковываем данные только если они подходят по формату
 		ResponseContentType := w.Header().Get("Content-Type")
-		if ResponseContentType == "application/json" || ResponseContentType == "text/plain" {
+		if ResponseContentType == "application/json" || ResponseContentType == "text/html" {
 			// Проверяем возможность сжатия данных на выходе
 			acceptEncoding := r.Header.Get("Accept-Encoding")
 			if strings.Contains(acceptEncoding, "gzip") {
