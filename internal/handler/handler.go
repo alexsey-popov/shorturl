@@ -12,19 +12,19 @@ import (
 )
 
 // links - Объект для работы со ссылками
-var links = service.NewShortener()
+var links = service.NewFileShortener()
 
 // HandleGet - Обработчик Get запроса
 func HandleGet(rw http.ResponseWriter, r *http.Request) {
 	prefix := chi.URLParam(r, "id")
 
-	originalURL, err := links.Get(prefix)
+	URL, err := links.Get(prefix)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	http.Redirect(rw, r, originalURL, http.StatusTemporaryRedirect)
+	http.Redirect(rw, r, URL.OriginalURL, http.StatusTemporaryRedirect)
 }
 
 // HandlePost - Обработчик Post запроса

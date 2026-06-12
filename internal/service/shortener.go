@@ -2,20 +2,23 @@ package service
 
 import (
 	"crypto/rand"
+	"log"
 	"net/url"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
+	"github.com/alexsey-popov/shorturl/internal/model"
+	"github.com/alexsey-popov/shorturl/internal/repository/infile"
 	"github.com/alexsey-popov/shorturl/internal/repository/inmemory"
 )
 
 // Repository - Интерфейс для хранилищ
 type Repository interface {
 	// Set - Фиксирование originalURL за значением prefix
-	Set(prefix string, originalURL string) (err error)
+	Set(URL model.URL) error
 	// Get - Получение originalURL по значению prefix
-	Get(prefix string) (originalURL string, err error)
+	Get(prefix string) (URL model.URL, err error)
 	// FindFromOriginal - Поиск prefix по значению originalURL
-	FindFromOriginal(originalURL string) (prefix string, err error)
+	FindFromOriginal(originalURL string) (item model.URL, err error)
 }
 
 // Shortener - Сервис для сокращения ссылок
@@ -23,10 +26,22 @@ type Shortener struct {
 	Repository
 }
 
-// NewShortener - Конструктор для Shortener
-func NewShortener() Shortener {
+// NewMemoryShortener - Конструктор Shortener для хранения данных в памяти
+func NewMemoryShortener() Shortener {
 	return Shortener{
 		Repository: inmemory.New(),
+	}
+}
+
+// NewFileShortener - Конструктор Shortener для хранения данных внутри файла
+func NewFileShortener() Shortener {
+	rep, err := infile.New(config.Server.FilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return Shortener{
+		Repository: rep,
 	}
 }
 
@@ -38,18 +53,20 @@ func (s Shortener) Add(originalURL string) (string, error) {
 	}
 
 	// Проверяем существование originalURL в базе
-	prefix, err := s.FindFromOriginal(originalURL)
+	URL, err := s.FindFromOriginal(originalURL)
 
 	// Если originalURL не нашли - добавляем новый элемент
 	if err != nil {
-		prefix = s.getNewPrefix()
+		URL = model.New(s.getNewPrefix(), originalURL)
 
-		if err = s.Set(prefix, originalURL); err != nil {
+		err = s.Set(URL)
+
+		if err != nil {
 			return "", err
 		}
 	}
 
-	return s.GetURLFromPrefix(prefix), nil
+	return s.GetURLFromPrefix(URL.Prefix), nil
 }
 
 // getNewPrefix - Получение нового префикса

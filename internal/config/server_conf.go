@@ -1,21 +1,22 @@
 package config
 
 import (
-	"flag"
-	"log"
+	"errors"
 	"net"
 	"net/url"
 	"os"
 
-	"github.com/alexsey-popov/shorturl/pkg/errors"
+	errorsPkg "github.com/alexsey-popov/shorturl/pkg/errors"
 )
 
+// ServerConf - Структура для хранения конфигурации
 type ServerConf struct {
 	Scheme          string
 	Host            string
 	NetAddress      string
 	ContentType     string
 	ContentTypeJson string
+	FilePath        string
 }
 
 // SetServerAddress - изменение адреса сервера
@@ -23,7 +24,7 @@ func (s ServerConf) SetServerAddress(value string) error {
 	// Проверка корректности указанного ip
 	serverAddr, err := net.ResolveTCPAddr("tcp", value)
 	if err != nil {
-		return errors.ErrInvalidAddress
+		return errorsPkg.ErrInvalidAddress
 	}
 
 	Server.NetAddress = serverAddr.String()
@@ -39,7 +40,7 @@ func (s ServerConf) SetBaseURL(value string) error {
 	}
 
 	if parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return errors.ErrInvalidAddress
+		return errorsPkg.ErrInvalidAddress
 	}
 
 	Server.Scheme = parsedURL.Scheme
@@ -48,34 +49,16 @@ func (s ServerConf) SetBaseURL(value string) error {
 	return nil
 }
 
-// New - Конструктор со значениями по умолчанию
-func New() ServerConf {
-	return ServerConf{
-		Scheme:          "http",
-		Host:            "localhost:8080",
-		NetAddress:      "localhost:8080",
-		ContentType:     "text/plain",
-		ContentTypeJson: "application/json",
+// SetFilePath - изменение файла хранения данных
+func (s ServerConf) SetFilePath(value string) error {
+	// Проверка корректности пути файла
+	_, err := os.Stat(value)
+	// Исключаем ошибку ErrNotExist. Если файла на существует - мы его создадим
+	if err != nil && errors.Is(err, os.ErrNotExist) == false {
+		return errorsPkg.ErrInvalidFilePath
 	}
-}
 
-// Parse - Парсим флаги и переменные окружения
-func Parse() {
-	// Каждый следующий шаг может перезаписать данные из предыдущего шага.
-	// Шаг 1. Заполняем конфиг значения из консольных флагов
-	flag.Parse()
+	Server.FilePath = value
 
-	// Шаг 2. Заполняем значения из переменных окружения
-	// Адрес сервера
-	if serverAddress := os.Getenv(EnvServerAddress); serverAddress != "" {
-		if err := Server.SetServerAddress(serverAddress); err != nil {
-			log.Fatal(err)
-		}
-	}
-	// URL сервера
-	if baseURL := os.Getenv(EnvBaseURL); baseURL != "" {
-		if err := Server.SetBaseURL(baseURL); err != nil {
-			log.Fatal(err)
-		}
-	}
+	return nil
 }

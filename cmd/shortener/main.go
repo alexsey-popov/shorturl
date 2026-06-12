@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/alexsey-popov/shorturl/internal/compact"
@@ -18,7 +19,7 @@ func main() {
 	// Создаём новый логгер
 	l, err := zap.NewDevelopment()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer l.Sync()
 
@@ -42,6 +43,6 @@ func main() {
 	// Поднимает сервер
 	err = http.ListenAndServe(config.Server.NetAddress, r)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
