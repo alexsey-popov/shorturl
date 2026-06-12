@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
+	"github.com/alexsey-popov/shorturl/pkg/content_type"
 	"github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
 )
@@ -40,7 +40,7 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 // HandlePost - Обработчик Post запроса
 func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
-	if r.Header.Get("Content-Type") != config.Server.ContentType {
+	if r.Header.Get("Content-Type") != content_type.Plain {
 		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
@@ -59,7 +59,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rw.Header().Set("Content-Type", config.Server.ContentType)
+	rw.Header().Set("Content-Type", content_type.Plain)
 	rw.WriteHeader(http.StatusCreated)
 	rw.Write([]byte(shortURL))
 }
@@ -67,7 +67,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 // HandlePostJson - Обработчик для запроса Post /api/shorten
 func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
-	if r.Header.Get("Content-Type") != config.Server.ContentTypeJson {
+	if r.Header.Get("Content-Type") != content_type.Json {
 		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
@@ -99,14 +99,14 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 	}
 
-	rw.Header().Set("Content-Type", config.Server.ContentTypeJson)
+	rw.Header().Set("Content-Type", content_type.Json)
 	rw.WriteHeader(http.StatusCreated)
 	rw.Write(response)
 }
 
 // HandleFails - обработчик для ошибочных запросов
 func HandleFails(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", config.Server.ContentType)
+	w.Header().Set("Content-Type", content_type.Plain)
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte(errors.ErrInvalidRequest.Error()))
 }

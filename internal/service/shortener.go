@@ -78,7 +78,7 @@ func (s Shortener) getNewPrefix() string {
 func (s Shortener) GetURLFromPrefix(prefix string) string {
 	shortURL, err := url.JoinPath(config.Server.Scheme+"://", config.Server.Host, prefix)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 
 	return shortURL

@@ -10,6 +10,10 @@ import (
 // Sugar - логгер
 var Sugar *zap.SugaredLogger
 
+func SetLogger(logger *zap.SugaredLogger) {
+	Sugar = logger
+}
+
 type (
 	// ResponseDetails - Детализация ответа
 	ResponseDetails struct {

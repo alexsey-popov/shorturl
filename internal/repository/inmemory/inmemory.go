@@ -24,23 +24,23 @@ func New() *InMemory {
 }
 
 // Set - Фиксируем originalURL за значением prefix
-func (im *InMemory) Set(URL model.URL) error {
+func (rep *InMemory) Set(URL model.URL) error {
 	// Защищаем map от одновременной записи из разных горутин
-	im.Lock()
-	defer im.Unlock()
+	rep.Lock()
+	defer rep.Unlock()
 
-	im.data[URL.Prefix] = URL
+	rep.data[URL.Prefix] = URL
 
 	return nil
 }
 
 // Get - получение ссылки на редирект по префиксу
-func (im *InMemory) Get(prefix string) (model.URL, error) {
+func (rep *InMemory) Get(prefix string) (model.URL, error) {
 	// Защищаем map от одновременного чтения из разных горутин
-	im.RLock()
-	defer im.RUnlock()
+	rep.RLock()
+	defer rep.RUnlock()
 
-	if item, ok := im.data[prefix]; ok {
+	if item, ok := rep.data[prefix]; ok {
 		return item, nil
 	}
 
@@ -48,12 +48,12 @@ func (im *InMemory) Get(prefix string) (model.URL, error) {
 }
 
 // FindFromOriginal - Поиск prefix по originalURL
-func (im *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
+func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 	// Защищаем map от одновременного чтения из разных горутин
-	im.RLock()
-	defer im.RUnlock()
+	rep.RLock()
+	defer rep.RUnlock()
 
-	for _, item := range im.data {
+	for _, item := range rep.data {
 		if item.OriginalURL == originalURL {
 			return item, nil
 		}
@@ -63,14 +63,14 @@ func (im *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 }
 
 // String - приведение структуры к строке
-func (im *InMemory) String() string {
+func (rep *InMemory) String() string {
 	// Защищаем map от одновременного чтения из разных горутин
-	im.RLock()
-	defer im.RUnlock()
+	rep.RLock()
+	defer rep.RUnlock()
 
 	text := "[\r\n"
 
-	for _, item := range im.data {
+	for _, item := range rep.data {
 		text += item.Prefix + " => " + item.OriginalURL + "\r\n"
 	}
 
@@ -80,9 +80,9 @@ func (im *InMemory) String() string {
 }
 
 // MarshalJSON приводит значения InMemory к формату json.
-func (im *InMemory) MarshalJSON() ([]byte, error) {
+func (rep *InMemory) MarshalJSON() ([]byte, error) {
 	// Преобразовываем мапу в слайс
-	slice := slices.Collect(maps.Values(im.data))
+	slice := slices.Collect(maps.Values(rep.data))
 
 	return json.Marshal(slice)
 }

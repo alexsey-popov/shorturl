@@ -11,12 +11,10 @@ import (
 
 // ServerConf - Структура для хранения конфигурации
 type ServerConf struct {
-	Scheme          string
-	Host            string
-	NetAddress      string
-	ContentType     string
-	ContentTypeJson string
-	FilePath        string
+	Scheme     string
+	Host       string
+	NetAddress string
+	FilePath   string
 }
 
 // SetServerAddress - изменение адреса сервера

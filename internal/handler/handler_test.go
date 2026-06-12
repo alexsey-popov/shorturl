@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/go-chi/chi/v5"
 )
@@ -29,31 +28,31 @@ func TestHandlePost(t *testing.T) {
 		{
 			name:        "positive #1",
 			target:      "/",
-			contentType: config.Server.ContentType,
+			contentType: content_type.Plain,
 			body:        "https://example.com/positive-1",
 			want: want{
 				statusCode:  http.StatusCreated,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 		{
 			name:        "negative #1 - incorrect url",
 			target:      "/",
-			contentType: config.Server.ContentType,
+			contentType: content_type.Plain,
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 		{
 			name:        "negative #2 - empty body",
 			target:      "/",
-			contentType: config.Server.ContentType,
+			contentType: content_type.Plain,
 			body:        "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 		{
@@ -63,7 +62,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 		{
@@ -73,7 +72,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 	}
@@ -120,41 +119,41 @@ func TestHandlePostJson(t *testing.T) {
 		{
 			name:        "positive #1",
 			target:      "/api/shorten",
-			contentType: config.Server.ContentTypeJson,
+			contentType: content_type.Json,
 			body:        `{"url": "https://example.com/positive-1"}`,
 			want: want{
 				statusCode:  http.StatusCreated,
-				contentType: config.Server.ContentTypeJson,
+				contentType: content_type.Json,
 			},
 		},
 		{
 			name:        "negative #1 - incorrect url",
 			target:      "/api/shorten",
-			contentType: config.Server.ContentTypeJson,
+			contentType: content_type.Json,
 			body:        `{"url": "incorrect-url"}`,
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 		{
 			name:        "negative #2 - empty body",
 			target:      "/api/shorten",
-			contentType: config.Server.ContentTypeJson,
+			contentType: content_type.Json,
 			body:        "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 		{
 			name:        "negative #3 - incorrect Content-type",
 			target:      "/api/shorten",
-			contentType: config.Server.ContentType,
+			contentType: content_type.Plain,
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: config.Server.ContentType,
+				contentType: content_type.Plain,
 			},
 		},
 	}

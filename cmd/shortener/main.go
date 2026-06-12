@@ -16,18 +16,17 @@ func main() {
 	// Парсим конфиг значениями из флагов и переменных окружения
 	config.Parse()
 
-	// Будет использовать файловое хранилище
+	// Будем использовать файловое хранилище
 	handler.UseFileRepository()
 
-	// Создаём новый логгер
+	// Создаём логгер и прокидываем его в пакет логирования
 	l, err := zap.NewDevelopment()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer l.Sync()
-
-	// Передаём созданный логер в пакет
-	logger.Sugar = l.Sugar()
+	sugar := l.Sugar()
+	defer sugar.Sync()
+	logger.SetLogger(sugar)
 
 	// Объявляем роуты
 	r := chi.NewRouter()

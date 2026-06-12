@@ -42,12 +42,10 @@ func init() {
 // New - Конструктор со значениями по умолчанию
 func New() ServerConf {
 	return ServerConf{
-		Scheme:          "http",
-		Host:            "localhost:8080",
-		NetAddress:      "localhost:8080",
-		ContentType:     "text/plain",
-		ContentTypeJson: "application/json",
-		FilePath:        "infile.json",
+		Scheme:     "http",
+		Host:       "localhost:8080",
+		NetAddress: "localhost:8080",
+		FilePath:   "infile.json",
 	}
 }
 
