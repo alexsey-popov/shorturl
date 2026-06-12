@@ -16,6 +16,9 @@ func main() {
 	// Парсим конфиг значениями из флагов и переменных окружения
 	config.Parse()
 
+	// Будет использовать файловое хранилище
+	handler.UseFileRepository()
+
 	// Создаём новый логгер
 	l, err := zap.NewDevelopment()
 	if err != nil {

@@ -185,9 +185,9 @@ func TestHandlePostJson(t *testing.T) {
 }
 
 func TestHandleGet(t *testing.T) {
-	// Добавляем в links заранее известную пару prefix => originalURL
+	// Добавляем в rep заранее известную пару prefix => originalURL
 	prefix, originalURL := "positive1", "https://example.com/positive1"
-	if err := links.Set(model.New(prefix, originalURL)); err != nil {
+	if err := rep.Set(model.New(prefix, originalURL)); err != nil {
 		t.Fatal(err)
 	}
 

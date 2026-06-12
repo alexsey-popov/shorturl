@@ -47,7 +47,7 @@ func New() ServerConf {
 		NetAddress:      "localhost:8080",
 		ContentType:     "text/plain",
 		ContentTypeJson: "application/json",
-		FilePath:        "infile.txt",
+		FilePath:        "infile.json",
 	}
 }
 

@@ -11,14 +11,24 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// links - Объект для работы со ссылками
-var links = service.NewFileShortener()
+// rep - Хранилище ссылок (по умолчанию в памяти)
+var rep service.Shortener = service.NewFileShortener()
+
+// UseFileRepository использование файлового хранилища
+func UseFileRepository() {
+	rep = service.NewFileShortener()
+}
+
+// UseMemoryRepository использование хранилища в памяти
+func UseMemoryRepository() {
+	rep = service.NewFileShortener()
+}
 
 // HandleGet - Обработчик Get запроса
 func HandleGet(rw http.ResponseWriter, r *http.Request) {
 	prefix := chi.URLParam(r, "id")
 
-	URL, err := links.Get(prefix)
+	URL, err := rep.Get(prefix)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -43,7 +53,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := links.Add(string(originalURL))
+	shortURL, err := rep.Add(string(originalURL))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -71,7 +81,7 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := links.Add(request.Url)
+	shortURL, err := rep.Add(request.Url)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
