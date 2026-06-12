@@ -1,7 +1,7 @@
-package content_type
+package contentType
 
 // Content-Type заголовки
 const (
 	Plain = "text/plain"
-	Json  = "application/json"
+	JSON  = "application/json"
 )

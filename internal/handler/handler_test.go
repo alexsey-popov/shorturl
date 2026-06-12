@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/alexsey-popov/shorturl/internal/model"
+	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -28,31 +29,31 @@ func TestHandlePost(t *testing.T) {
 		{
 			name:        "positive #1",
 			target:      "/",
-			contentType: content_type.Plain,
+			contentType: contentType.Plain,
 			body:        "https://example.com/positive-1",
 			want: want{
 				statusCode:  http.StatusCreated,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 		{
 			name:        "negative #1 - incorrect url",
 			target:      "/",
-			contentType: content_type.Plain,
+			contentType: contentType.Plain,
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 		{
 			name:        "negative #2 - empty body",
 			target:      "/",
-			contentType: content_type.Plain,
+			contentType: contentType.Plain,
 			body:        "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 		{
@@ -62,7 +63,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 		{
@@ -72,7 +73,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 	}
@@ -119,41 +120,41 @@ func TestHandlePostJson(t *testing.T) {
 		{
 			name:        "positive #1",
 			target:      "/api/shorten",
-			contentType: content_type.Json,
+			contentType: contentType.JSON,
 			body:        `{"url": "https://example.com/positive-1"}`,
 			want: want{
 				statusCode:  http.StatusCreated,
-				contentType: content_type.Json,
+				contentType: contentType.JSON,
 			},
 		},
 		{
 			name:        "negative #1 - incorrect url",
 			target:      "/api/shorten",
-			contentType: content_type.Json,
+			contentType: contentType.JSON,
 			body:        `{"url": "incorrect-url"}`,
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 		{
 			name:        "negative #2 - empty body",
 			target:      "/api/shorten",
-			contentType: content_type.Json,
+			contentType: contentType.JSON,
 			body:        "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 		{
 			name:        "negative #3 - incorrect Content-type",
 			target:      "/api/shorten",
-			contentType: content_type.Plain,
+			contentType: contentType.Plain,
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: content_type.Plain,
+				contentType: contentType.Plain,
 			},
 		},
 	}
