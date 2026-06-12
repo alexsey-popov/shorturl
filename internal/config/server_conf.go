@@ -54,7 +54,7 @@ func (s ServerConf) SetFilePath(value string) error {
 	// Проверка корректности пути файла
 	_, err := os.Stat(value)
 	// Исключаем ошибку ErrNotExist. Если файла на существует - мы его создадим
-	if err != nil && errors.Is(err, os.ErrNotExist) == false {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return errorsPkg.ErrInvalidFilePath
 	}
 

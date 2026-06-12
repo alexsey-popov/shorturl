@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
+	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -186,7 +187,7 @@ func TestHandlePostJson(t *testing.T) {
 func TestHandleGet(t *testing.T) {
 	// Добавляем в links заранее известную пару prefix => originalURL
 	prefix, originalURL := "positive1", "https://example.com/positive1"
-	if err := links.Set(prefix, originalURL); err != nil {
+	if err := links.Set(model.New(prefix, originalURL)); err != nil {
 		t.Fatal(err)
 	}
 

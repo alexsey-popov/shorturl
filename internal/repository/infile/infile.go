@@ -68,7 +68,7 @@ func New(filename string) (*InFile, error) {
 
 	// Читаем данные из файла
 	bytesData, err := os.ReadFile(filename)
-	if err != nil && errors.Is(err, os.ErrNotExist) == false {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
 	// Файл не пустой - заполняем репозиторий
