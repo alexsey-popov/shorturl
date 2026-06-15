@@ -4,4 +4,5 @@ package contentType
 const (
 	Plain = "text/plain"
 	JSON  = "application/json"
+	HTML  = "text/html"
 )
