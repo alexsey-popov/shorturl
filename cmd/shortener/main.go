@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/alexsey-popov/shorturl/internal/compact"
@@ -13,26 +12,29 @@ import (
 )
 
 func main() {
-	// Парсим конфиг значениями из флагов и переменных окружения
-	config.Parse()
-
-	// Будем использовать файловое хранилище
-	handler.UseFileRepository()
-
-	// Создаём логгер и прокидываем его в пакет логирования
+	// Создаём логгер
 	l, err := zap.NewDevelopment()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
+	defer l.Sync()
 	sugar := l.Sugar()
-	defer sugar.Sync()
-	logger.SetLogger(sugar)
+
+	// Парсим конфиг значениями из флагов и переменных окружения
+	if err = config.Parse(); err != nil {
+		sugar.Fatal(err)
+	}
+
+	// Будем использовать файловое хранилище
+	if err = handler.UseFileRepository(); err != nil {
+		sugar.Fatal(err)
+	}
 
 	// Объявляем роуты
 	r := chi.NewRouter()
 
 	// Логируем результаты запросов LogMiddleware
-	r.Use(logger.HTTPMiddleware)
+	r.Use(logger.NewHTTPMiddleware(sugar))
 
 	// Разворачиваем и сокращаём данные
 	r.Use(compact.HTTPMiddleware)
@@ -45,6 +47,6 @@ func main() {
 	// Поднимает сервер
 	err = http.ListenAndServe(config.Server.NetAddress, r)
 	if err != nil {
-		log.Fatal(err)
+		sugar.Fatal(err)
 	}
 }

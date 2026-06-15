@@ -13,7 +13,7 @@ import (
 // InFile - хранение данных в файле.
 // inmemory.InMemory вынесен в отдельный атрибут для того, чтобы у файла был свой мьютекс
 type InFile struct {
-	sync.RWMutex
+	mu       sync.RWMutex
 	filename string
 	data     *inmemory.InMemory
 }
@@ -25,16 +25,15 @@ func (rep *InFile) MarshalJSON() ([]byte, error) {
 
 // Set - Фиксируем originalURL за значением prefix
 func (rep *InFile) Set(URL model.URL) error {
-	// ЗАписываем данные в память
+	// Защищаем файл от конкурентного доступа
+	rep.mu.Lock()
+	defer rep.mu.Unlock()
+
+	// Записываем данные в память
 	err := rep.data.Set(URL)
 	if err != nil {
 		return err
 	}
-
-	//  Если получилось добавить файл в память, но не получилось записать на диск - возвращаем и данные и ошибку
-	//if err = rep.encoder.Encode(URL); err != nil {
-	//	return err
-	//}
 
 	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
 	if err != nil {

@@ -1,10 +1,8 @@
 package config
 
 import (
-	"errors"
 	"net"
 	"net/url"
-	"os"
 
 	errorsPkg "github.com/alexsey-popov/shorturl/pkg/errors"
 )
@@ -49,13 +47,6 @@ func (s ServerConf) SetBaseURL(value string) error {
 
 // SetFilePath - изменение файла хранения данных
 func (s ServerConf) SetFilePath(value string) error {
-	// Проверка корректности пути файла
-	_, err := os.Stat(value)
-	// Исключаем ошибку ErrNotExist. Если файла на существует - мы его создадим
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errorsPkg.ErrInvalidFilePath
-	}
-
 	Server.FilePath = value
 
 	return nil

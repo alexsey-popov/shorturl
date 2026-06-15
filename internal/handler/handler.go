@@ -11,24 +11,26 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// rep - Хранилище ссылок (по умолчанию в памяти)
-var rep service.Shortener = service.NewFileShortener()
+// shortener - Хранилище ссылок (по умолчанию в памяти)
+var shortener service.Shortener = service.NewMemoryShortener()
 
 // UseFileRepository использование файлового хранилища
-func UseFileRepository() {
-	rep = service.NewFileShortener()
+func UseFileRepository() (err error) {
+	shortener, err = service.NewFileShortener()
+
+	return
 }
 
 // UseMemoryRepository использование хранилища в памяти
 func UseMemoryRepository() {
-	rep = service.NewFileShortener()
+	shortener = service.NewMemoryShortener()
 }
 
 // HandleGet - Обработчик Get запроса
 func HandleGet(rw http.ResponseWriter, r *http.Request) {
 	prefix := chi.URLParam(r, "id")
 
-	URL, err := rep.Get(prefix)
+	URL, err := shortener.Rep.Get(prefix)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -53,7 +55,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := rep.Add(string(originalURL))
+	shortURL, err := shortener.Add(string(originalURL))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -78,10 +80,11 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := rep.Add(request.Url)
+	shortURL, err := shortener.Add(request.Url)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -97,6 +100,7 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	rw.Header().Set("Content-Type", contentType.JSON)

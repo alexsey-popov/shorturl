@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"log"
 	"os"
 )
 
@@ -21,23 +20,8 @@ const (
 	FlagFilePath = "f"
 )
 
-// Задаём правила парсинга флагов командной строки
-func init() {
-	// Обрабатывает флаг с адресом сервера
-	flag.Func(FlagServerAddress, "Адрес прослушиваемого сервера в формате ip:port", Server.SetServerAddress)
-	// Обрабатывает флаг с URL сервера
-	flag.Func(FlagBaseURL, "Базовый адрес сервера в формате http://localhost:8080", Server.SetBaseURL)
-	// Обрабатывает флаг с URL сервера
-	flag.Func(FlagFilePath, "Путь до файла в котором будут храниться данные (если используется тип хранения \"В файле\")", Server.SetFilePath)
-}
-
-// Server - Объект для хранения документация
-var Server ServerConf
-
-// При инициализации создаём и заполняем экземпляр конфига значениями по умолчанию
-func init() {
-	Server = New()
-}
+// Server - Объект конфига (по умолчанию заполнен дефолтными значениями)
+var Server ServerConf = New()
 
 // New - Конструктор со значениями по умолчанию
 func New() ServerConf {
@@ -50,28 +34,37 @@ func New() ServerConf {
 }
 
 // Parse - Парсим флаги и переменные окружения
-func Parse() {
+func Parse() error {
 	// Каждый следующий шаг может перезаписать данные из предыдущего шага.
-	// Шаг 1. Заполняем конфиг значения из консольных флагов
+	// Шаг 1. Заполняем конфиг значениями из консольных флагов
+	// Адрес сервера
+	flag.Func(FlagServerAddress, "Адрес прослушиваемого сервера в формате ip:port", Server.SetServerAddress)
+	// URL сервера
+	flag.Func(FlagBaseURL, "Базовый адрес сервера в формате http://localhost:8080", Server.SetBaseURL)
+	// Обрабатывает флаг с URL сервера
+	flag.Func(FlagFilePath, "Путь до файла в котором будут храниться данные (если используется тип хранения \"В файле\")", Server.SetFilePath)
+	// Путь до файла хранения (при использовании репозитория InFile)
 	flag.Parse()
 
 	// Шаг 2. Заполняем значения из переменных окружения
 	// Адрес сервера
-	if serverAddress := os.Getenv(EnvServerAddress); serverAddress != "" {
+	if serverAddress, exists := os.LookupEnv(EnvServerAddress); exists {
 		if err := Server.SetServerAddress(serverAddress); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 	// URL сервера
-	if baseURL := os.Getenv(EnvBaseURL); baseURL != "" {
+	if baseURL, exists := os.LookupEnv(EnvBaseURL); exists {
 		if err := Server.SetBaseURL(baseURL); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 	// Путь до файла хранения (при использовании репозитория InFile)
-	if filePath := os.Getenv(EnvFilePath); filePath != "" {
+	if filePath, exists := os.LookupEnv(EnvFilePath); exists {
 		if err := Server.SetFilePath(filePath); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
+
+	return nil
 }

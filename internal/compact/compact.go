@@ -40,18 +40,14 @@ func HTTPMiddleware(handler http.Handler) http.Handler {
 			}
 		}
 
-		// Запаковываем данные только если они подходят по формату
-		ResponseContentType := w.Header().Get("Content-Type")
-		if ResponseContentType == contentType.JSON || ResponseContentType == contentType.Plain {
-			// Проверяем возможность сжатия данных на выходе
-			acceptEncoding := r.Header.Get("Accept-Encoding")
-			if strings.Contains(acceptEncoding, "gzip") {
-				gz := gzip.NewWriter(w)
-				defer gz.Close()
+		// Проверяем возможность сжатия данных на выходе
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		if strings.Contains(acceptEncoding, "gzip") {
+			gz := gzip.NewWriter(w)
+			defer gz.Close()
 
-				w.Header().Set("Content-Encoding", "gzip")
-				w = CompactWriter{ResponseWriter: w, Writer: gz}
-			}
+			w.Header().Set("Content-Encoding", "gzip")
+			w = CompactWriter{ResponseWriter: w, Writer: gz}
 		}
 
 		handler.ServeHTTP(w, r)

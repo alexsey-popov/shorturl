@@ -12,7 +12,7 @@ import (
 
 // InMemory - хранение данных в памяти
 type InMemory struct {
-	sync.RWMutex
+	mu   sync.RWMutex
 	data map[string]model.URL
 }
 
@@ -26,8 +26,8 @@ func New() *InMemory {
 // Set - Фиксируем originalURL за значением prefix
 func (rep *InMemory) Set(URL model.URL) error {
 	// Защищаем map от одновременной записи из разных горутин
-	rep.Lock()
-	defer rep.Unlock()
+	rep.mu.Lock()
+	defer rep.mu.Unlock()
 
 	rep.data[URL.Prefix] = URL
 
@@ -37,8 +37,8 @@ func (rep *InMemory) Set(URL model.URL) error {
 // Get - получение ссылки на редирект по префиксу
 func (rep *InMemory) Get(prefix string) (model.URL, error) {
 	// Защищаем map от одновременного чтения из разных горутин
-	rep.RLock()
-	defer rep.RUnlock()
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
 
 	if item, ok := rep.data[prefix]; ok {
 		return item, nil
@@ -50,8 +50,8 @@ func (rep *InMemory) Get(prefix string) (model.URL, error) {
 // FindFromOriginal - Поиск prefix по originalURL
 func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 	// Защищаем map от одновременного чтения из разных горутин
-	rep.RLock()
-	defer rep.RUnlock()
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
 
 	for _, item := range rep.data {
 		if item.OriginalURL == originalURL {
@@ -65,8 +65,8 @@ func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 // String - приведение структуры к строке
 func (rep *InMemory) String() string {
 	// Защищаем map от одновременного чтения из разных горутин
-	rep.RLock()
-	defer rep.RUnlock()
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
 
 	text := "[\r\n"
 
@@ -81,6 +81,10 @@ func (rep *InMemory) String() string {
 
 // MarshalJSON приводит значения InMemory к формату json.
 func (rep *InMemory) MarshalJSON() ([]byte, error) {
+	// Защищаем map от одновременного чтения из разных горутин
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
+
 	// Преобразовываем мапу в слайс
 	slice := slices.Collect(maps.Values(rep.data))
 

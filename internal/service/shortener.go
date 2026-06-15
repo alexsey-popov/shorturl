@@ -2,7 +2,6 @@ package service
 
 import (
 	"crypto/rand"
-	"log"
 	"net/url"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
@@ -23,26 +22,26 @@ type Repository interface {
 
 // Shortener - Сервис для сокращения ссылок
 type Shortener struct {
-	Repository
+	Rep Repository
 }
 
 // NewMemoryShortener - Конструктор Shortener для хранения данных в памяти
 func NewMemoryShortener() Shortener {
 	return Shortener{
-		Repository: inmemory.New(),
+		Rep: inmemory.New(),
 	}
 }
 
 // NewFileShortener - Конструктор Shortener для хранения данных внутри файла
-func NewFileShortener() Shortener {
+func NewFileShortener() (Shortener, error) {
 	rep, err := infile.New(config.Server.FilePath)
 	if err != nil {
-		log.Fatal(err)
+		return Shortener{}, err
 	}
 
 	return Shortener{
-		Repository: rep,
-	}
+		Rep: rep,
+	}, nil
 }
 
 // Add - Добавление новой ссылки
@@ -53,20 +52,20 @@ func (s Shortener) Add(originalURL string) (string, error) {
 	}
 
 	// Проверяем существование originalURL в базе
-	URL, err := s.FindFromOriginal(originalURL)
+	URL, err := s.Rep.FindFromOriginal(originalURL)
 
 	// Если originalURL не нашли - добавляем новый элемент
 	if err != nil {
 		URL = model.New(s.getNewPrefix(), originalURL)
 
-		err = s.Set(URL)
+		err = s.Rep.Set(URL)
 
 		if err != nil {
 			return "", err
 		}
 	}
 
-	return s.GetURLFromPrefix(URL.Prefix), nil
+	return s.GetURLFromPrefix(URL.Prefix)
 }
 
 // getNewPrefix - Получение нового префикса
@@ -75,11 +74,6 @@ func (s Shortener) getNewPrefix() string {
 }
 
 // GetURLFromPrefix - Получение сокращённого url по префиксу
-func (s Shortener) GetURLFromPrefix(prefix string) string {
-	shortURL, err := url.JoinPath(config.Server.Scheme+"://", config.Server.Host, prefix)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return shortURL
+func (s Shortener) GetURLFromPrefix(prefix string) (string, error) {
+	return url.JoinPath(config.Server.Scheme+"://", config.Server.Host, prefix)
 }

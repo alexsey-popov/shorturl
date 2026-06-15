@@ -185,9 +185,9 @@ func TestHandlePostJson(t *testing.T) {
 }
 
 func TestHandleGet(t *testing.T) {
-	// Добавляем в rep заранее известную пару prefix => originalURL
+	// Добавляем в shortener заранее известную пару prefix => originalURL
 	prefix, originalURL := "positive1", "https://example.com/positive1"
-	if err := rep.Set(model.New(prefix, originalURL)); err != nil {
+	if err := shortener.Rep.Set(model.New(prefix, originalURL)); err != nil {
 		t.Fatal(err)
 	}
 
