@@ -5,8 +5,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/alexsey-popov/shorturl/pkg/contentType"
 )
 
 // CompactWriter - обвёртка ResponseWriter, которая записывает данные в кастомный io.Writer
@@ -24,20 +22,16 @@ func (cw CompactWriter) Write(data []byte) (int, error) {
 func HTTPMiddleware(handler http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Распаковываем данные только если они подходят по формату
-		requestContentType := r.Header.Get("Content-Type")
-		if requestContentType == contentType.JSON || requestContentType == contentType.HTML {
-			// Проверяем наличие сжатия данных на входе
-			contentEncoding := r.Header.Get("Content-Encoding")
-			if strings.Contains(contentEncoding, "gzip") {
-				gzipReader, err := gzip.NewReader(r.Body)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-					return
-				}
-				defer gzipReader.Close()
-				r.Body = gzipReader
+		// Проверяем наличие сжатия данных на входе
+		contentEncoding := r.Header.Get("Content-Encoding")
+		if strings.Contains(contentEncoding, "gzip") {
+			gzipReader, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
 			}
+			defer gzipReader.Close()
+			r.Body = gzipReader
 		}
 
 		// Проверяем возможность сжатия данных на выходе
