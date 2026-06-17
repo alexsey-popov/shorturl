@@ -1,76 +1,92 @@
 package inmemory
 
 import (
+	"encoding/json"
+	"maps"
+	"slices"
 	"sync"
 
+	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/alexsey-popov/shorturl/pkg/errors"
 )
 
 // InMemory - хранение данных в памяти
 type InMemory struct {
-	sync.RWMutex
-	data map[string]string
+	mu   sync.RWMutex
+	data map[string]model.URL
 }
 
 // New - Конструктор
 func New() *InMemory {
 	return &InMemory{
-		data: make(map[string]string),
+		data: make(map[string]model.URL),
 	}
 }
 
 // Set - Фиксируем originalURL за значением prefix
-func (im *InMemory) Set(prefix string, originalURL string) (err error) {
+func (rep *InMemory) Set(URL model.URL) error {
 	// Защищаем map от одновременной записи из разных горутин
-	im.Lock()
-	defer im.Unlock()
+	rep.mu.Lock()
+	defer rep.mu.Unlock()
 
-	im.data[prefix] = originalURL
+	rep.data[URL.Prefix] = URL
 
 	return nil
 }
 
 // Get - получение ссылки на редирект по префиксу
-func (im *InMemory) Get(prefix string) (string, error) {
+func (rep *InMemory) Get(prefix string) (model.URL, error) {
 	// Защищаем map от одновременного чтения из разных горутин
-	im.RLock()
-	defer im.RUnlock()
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
 
-	if originalURL, ok := im.data[prefix]; ok {
-		return originalURL, nil
+	if item, ok := rep.data[prefix]; ok {
+		return item, nil
 	}
 
-	return "", errors.ErrURLNotFound
+	return model.URL{}, errors.ErrURLNotFound
 }
 
 // FindFromOriginal - Поиск prefix по originalURL
-func (im *InMemory) FindFromOriginal(originalURL string) (string, error) {
+func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 	// Защищаем map от одновременного чтения из разных горутин
-	im.RLock()
-	defer im.RUnlock()
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
 
-	for prefix, value := range im.data {
-		if value == originalURL {
-			return prefix, nil
+	for _, item := range rep.data {
+		if item.OriginalURL == originalURL {
+			return item, nil
 		}
 	}
 
-	return "", errors.ErrURLNotFound
+	return model.URL{}, errors.ErrURLNotFound
 }
 
 // String - приведение структуры к строке
-func (im *InMemory) String() string {
+func (rep *InMemory) String() string {
 	// Защищаем map от одновременного чтения из разных горутин
-	im.RLock()
-	defer im.RUnlock()
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
 
 	text := "[\r\n"
 
-	for prefix, originalURL := range im.data {
-		text += prefix + " => " + originalURL + "\r\n"
+	for _, item := range rep.data {
+		text += item.Prefix + " => " + item.OriginalURL + "\r\n"
 	}
 
 	text += "]\r\n"
 
 	return text
+}
+
+// MarshalJSON приводит значения InMemory к формату json.
+func (rep *InMemory) MarshalJSON() ([]byte, error) {
+	// Защищаем map от одновременного чтения из разных горутин
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
+
+	// Преобразовываем мапу в слайс
+	slice := slices.Collect(maps.Values(rep.data))
+
+	return json.Marshal(slice)
 }
