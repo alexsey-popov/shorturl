@@ -42,8 +42,6 @@ func (drw *DetailsResponseWriter) WriteHeader(statusCode int) {
 
 // NewHTTPMiddleware Принимаем логгер, возвращаем функцию-замыкание, которая будет логировать запросы
 func NewHTTPMiddleware(l *zap.SugaredLogger) func(http.Handler) http.Handler {
-	// Создаем именованный логгер специально для HTTP-слоя
-	httpLog := l.Named("http")
 
 	return func(h http.Handler) http.Handler {
 		logFn := func(rw http.ResponseWriter, r *http.Request) {
@@ -61,13 +59,14 @@ func NewHTTPMiddleware(l *zap.SugaredLogger) func(http.Handler) http.Handler {
 
 			status, size, duration := dwr.details.status, dwr.details.size, time.Since(timeStart)
 
-			httpLog.Infow(
+			l.Infow(
 				"request",
 				"url", url,
 				"method", method,
 				"duration", duration,
 				"status", status,
-				"size", size)
+				"size", size,
+			)
 		}
 
 		return http.HandlerFunc(logFn)

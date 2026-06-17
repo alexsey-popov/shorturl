@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/alexsey-popov/shorturl/internal/compact"
@@ -15,7 +16,7 @@ func main() {
 	// Создаём логгер
 	l, err := zap.NewDevelopment()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer l.Sync()
 	sugar := l.Sugar()

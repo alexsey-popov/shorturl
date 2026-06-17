@@ -48,19 +48,19 @@ func Parse() error {
 
 	// Шаг 2. Заполняем значения из переменных окружения
 	// Адрес сервера
-	if serverAddress, exists := os.LookupEnv(EnvServerAddress); exists {
+	if serverAddress, ok := os.LookupEnv(EnvServerAddress); ok {
 		if err := Server.SetServerAddress(serverAddress); err != nil {
 			return err
 		}
 	}
 	// URL сервера
-	if baseURL, exists := os.LookupEnv(EnvBaseURL); exists {
+	if baseURL, ok := os.LookupEnv(EnvBaseURL); ok {
 		if err := Server.SetBaseURL(baseURL); err != nil {
 			return err
 		}
 	}
 	// Путь до файла хранения (при использовании репозитория InFile)
-	if filePath, exists := os.LookupEnv(EnvFilePath); exists {
+	if filePath, ok := os.LookupEnv(EnvFilePath); ok {
 		if err := Server.SetFilePath(filePath); err != nil {
 			return err
 		}
