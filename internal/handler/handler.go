@@ -1,14 +1,19 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
+	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	"github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // shortener - Хранилище ссылок (по умолчанию в памяти)
@@ -113,4 +118,31 @@ func HandleFails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType.Plain)
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte(errors.ErrInvalidRequest.Error()))
+}
+
+// HandleGetPing - Обработчик Get запроса /ping
+func HandleGetPing(w http.ResponseWriter, r *http.Request) {
+	// Создаём объект взаимодействия с базой
+	db, err := sql.Open("pgx", config.Server.DSN)
+
+	// Если мы не встретили ошибку, то обещаем закрыть соединение и пингуем его
+	if err == nil {
+		defer db.Close()
+
+		err = db.Ping()
+
+		// Если при мы не получили ошибку, то возвращаем статус 200
+		if err == nil {
+			w.WriteHeader(http.StatusOK)
+
+			return
+		}
+	}
+
+	// Если мы дошли до этого этапа - значит где то была ошибка
+	w.WriteHeader(http.StatusInternalServerError)
+	log.Println("error is", err)
+	w.Write([]byte(err.Error()))
+
+	return
 }

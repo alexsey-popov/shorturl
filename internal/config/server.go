@@ -13,6 +13,7 @@ type ServerConf struct {
 	Host       string
 	NetAddress string
 	FilePath   string
+	DSN        string
 }
 
 // SetServerAddress - изменение адреса сервера
@@ -48,6 +49,13 @@ func (s ServerConf) SetBaseURL(value string) error {
 // SetFilePath - изменение файла хранения данных
 func (s ServerConf) SetFilePath(value string) error {
 	Server.FilePath = value
+
+	return nil
+}
+
+// SetDBDsn - изменение файла хранения данных
+func (s ServerConf) SetDSN(value string) error {
+	Server.DSN = value
 
 	return nil
 }

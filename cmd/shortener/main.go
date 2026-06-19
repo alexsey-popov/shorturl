@@ -42,6 +42,7 @@ func main() {
 
 	r.Post("/", handler.HandlePost)
 	r.Post("/api/shorten", handler.HandlePostJson)
+	r.Get("/ping", handler.HandleGetPing)
 	r.Get("/{id}", handler.HandleGet)
 	r.MethodNotAllowed(handler.HandleFails)
 
