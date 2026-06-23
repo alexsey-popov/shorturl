@@ -11,6 +11,11 @@ import (
 	"github.com/alexsey-popov/shorturl/internal/logger"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -37,6 +42,17 @@ func main() {
 			sugar.Fatal(err)
 		}
 		defer db.Close()
+
+		// Запуск миграций
+		driver, err := postgres.WithInstance(db, &postgres.Config{})
+		m, err := migrate.NewWithDatabaseInstance(
+			"file://migrations",
+			"postgres", driver)
+		if err != nil {
+			sugar.Fatal(err)
+		}
+
+		m.Up() // or m.Steps(2) if you want to explicitly set the number of migrations to run
 
 		handler.UseDBRepository(db)
 
