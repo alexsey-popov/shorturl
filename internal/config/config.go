@@ -34,7 +34,7 @@ func New() ServerConf {
 		Host:       "localhost:8080",
 		NetAddress: "localhost:8080",
 		FilePath:   "infile.json",
-		DSN:        "host=localhost user=urls password=userpassword dbname=urls sslmode=disable",
+		DSN:        "",
 	}
 }
 
