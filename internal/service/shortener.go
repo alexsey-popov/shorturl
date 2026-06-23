@@ -2,10 +2,12 @@ package service
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"net/url"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
+	"github.com/alexsey-popov/shorturl/internal/repository/indb"
 	"github.com/alexsey-popov/shorturl/internal/repository/infile"
 	"github.com/alexsey-popov/shorturl/internal/repository/inmemory"
 )
@@ -42,6 +44,13 @@ func NewFileShortener() (Shortener, error) {
 	return Shortener{
 		Rep: rep,
 	}, nil
+}
+
+// NewDBShortener - Конструктор Shortener для хранения данных в базе данных
+func NewDBShortener(db *sql.DB) Shortener {
+	return Shortener{
+		Rep: indb.New(db),
+	}
 }
 
 // Add - Добавление новой ссылки

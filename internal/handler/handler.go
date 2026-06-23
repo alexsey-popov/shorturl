@@ -19,6 +19,11 @@ import (
 // shortener - Хранилище ссылок (по умолчанию в памяти)
 var shortener service.Shortener = service.NewMemoryShortener()
 
+// UseDBRepository использование базы данных
+func UseDBRepository(db *sql.DB) {
+	shortener = service.NewDBShortener(db)
+}
+
 // UseFileRepository использование файлового хранилища
 func UseFileRepository() (err error) {
 	shortener, err = service.NewFileShortener()

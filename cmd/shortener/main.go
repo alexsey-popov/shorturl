@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 
@@ -26,9 +27,29 @@ func main() {
 		sugar.Fatal(err)
 	}
 
-	// Будем использовать файловое хранилище
-	if err = handler.UseFileRepository(); err != nil {
-		sugar.Fatal(err)
+	// Пытаемся подключить различные виды хранилищ (по умолчанию используется хранение в памяти)
+	switch {
+	// Если указаны данные для подключения в БД - используем БД
+	case config.Server.DSN != "":
+		// Создаём объект взаимодействия с базой
+		db, err := sql.Open("pgx", config.Server.DSN)
+		if err != nil {
+			sugar.Fatal(err)
+		}
+		defer db.Close()
+
+		handler.UseDBRepository(db)
+
+		sugar.Infoln("Use database repository")
+	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
+	case config.Server.FilePath != "":
+		if err = handler.UseFileRepository(); err != nil {
+			sugar.Fatal(err)
+		}
+
+		sugar.Infoln("Use file repository")
+	default:
+		sugar.Infoln("Use database repository")
 	}
 
 	// Объявляем роуты
