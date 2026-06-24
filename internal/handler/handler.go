@@ -118,8 +118,64 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	rw.Write(response)
 }
 
+// HandlePostBatch - Обработчик для запроса Post /api/shorten/batch (массовое создание)
+func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
+	// Некорректный content-type - ошибка
+	if r.Header.Get("Content-Type") != contentType.JSON {
+		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		return
+	}
+
+	type requestItem struct {
+		Prefix      string `json:"correlation_id"`
+		OriginalURL string `json:"original_url"`
+	}
+
+	// Читаем URL из json
+	requestItems := make([]requestItem, 0)
+	if err := json.NewDecoder(r.Body).Decode(&requestItems); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(requestItems) == 0 {
+		http.Error(rw, errors.ErrEmptyBatch.Error(), http.StatusBadRequest)
+		return
+	}
+
+	type responseItem struct {
+		Prefix   string `json:"correlation_id"`
+		ShortURL string `json:"short_url"`
+	}
+	responseItems := make([]responseItem, 0, len(requestItems))
+
+	for _, item := range requestItems {
+		// Получаем сокращённую ссылку
+		shortURL, err := shortener.Add(item.OriginalURL)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		responseItems = append(responseItems, responseItem{Prefix: item.Prefix, ShortURL: shortURL})
+	}
+
+	// Подготавливаем json ответ
+	response, err := json.Marshal(responseItems)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	rw.Header().Set("Content-Type", contentType.JSON)
+	rw.WriteHeader(http.StatusCreated)
+	rw.Write(response)
+}
+
 // HandleFails - обработчик для ошибочных запросов
 func HandleFails(w http.ResponseWriter, r *http.Request) {
+	//TODO:: Переделай под http.Error
 	w.Header().Set("Content-Type", contentType.Plain)
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte(errors.ErrInvalidRequest.Error()))

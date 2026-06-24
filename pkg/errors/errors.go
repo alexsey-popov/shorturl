@@ -8,4 +8,5 @@ var (
 	ErrInvalidRequest     = errors.New("некорректный запрос")
 	ErrInvalidAddress     = errors.New("некорректный адрес")
 	ErrInvalidFilePath    = errors.New("некорректный путь до файла")
+	ErrEmptyBatch         = errors.New("пустая пачка данных")
 )
