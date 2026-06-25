@@ -107,7 +107,12 @@ func (s Shortener) AddMany(originalURLs []string) (mapURLs map[string]string, er
 
 	mapURLs = make(map[string]string)
 	for _, URL := range URLs {
-		mapURLs[URL.OriginalURL] = URL.Prefix
+		shortURL, err := s.GetURLFromPrefix(URL.Prefix)
+		if err != nil {
+			return nil, err
+		}
+
+		mapURLs[URL.OriginalURL] = shortURL
 	}
 
 	return
