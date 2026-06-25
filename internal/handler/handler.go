@@ -91,8 +91,8 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	rw.Write([]byte(shortURL))
 }
 
-// HandlePostJson - Обработчик для запроса Post /api/shorten
-func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
+// HandlePostJSON - Обработчик для запроса Post /api/shorten
+func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
 		http.Error(rw, errors2.ErrInvalidContentType.Error(), http.StatusBadRequest)
@@ -101,7 +101,7 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 
 	// Читаем URL из json
 	request := struct {
-		Url string `json:"url"`
+		URL string `json:"url"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
@@ -109,7 +109,7 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := shortener.Add(request.Url)
+	shortURL, err := shortener.Add(request.URL)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -248,6 +248,4 @@ func HandleGetPing(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusInternalServerError)
 	log.Println("error is", err)
 	w.Write([]byte(err.Error()))
-
-	return
 }

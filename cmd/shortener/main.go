@@ -45,6 +45,9 @@ func main() {
 
 		// Запуск миграций
 		driver, err := postgres.WithInstance(db, &postgres.Config{})
+		if err != nil {
+			sugar.Fatal(err)
+		}
 		m, err := migrate.NewWithDatabaseInstance(
 			"file://migrations",
 			"postgres", driver)
@@ -79,7 +82,7 @@ func main() {
 
 	r.Post("/", handler.HandlePost)
 	r.Post("/api/shorten/batch", handler.HandlePostBatch)
-	r.Post("/api/shorten", handler.HandlePostJson)
+	r.Post("/api/shorten", handler.HandlePostJSON)
 	r.Get("/ping", handler.HandleGetPing)
 	r.Get("/{id}", handler.HandleGet)
 	r.MethodNotAllowed(handler.HandleFails)
