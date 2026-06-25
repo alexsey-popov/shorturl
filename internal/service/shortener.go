@@ -14,12 +14,14 @@ import (
 
 // Repository - Интерфейс для хранилищ
 type Repository interface {
-	// Set - Фиксирование originalURL за значением prefix
+	// Set - Сохранение originalURL за значением prefix
 	Set(URL model.URL) error
+	// SetMany - Сохранение нескольких ссылок
+	SetMany(URLs []model.URL) error
 	// Get - Получение originalURL по значению prefix
 	Get(prefix string) (URL model.URL, err error)
-	// FindFromOriginal - Поиск prefix по значению originalURL
-	FindFromOriginal(originalURL string) (item model.URL, err error)
+	// FindFromOriginal - Поиск значений по значению originalURL
+	FindFromOriginal(originalURL string) (URL model.URL, err error)
 }
 
 // Shortener - Сервис для сокращения ссылок
@@ -53,10 +55,18 @@ func NewDBShortener(db *sql.DB) Shortener {
 	}
 }
 
+// CheckValidURL Валидация ссылки
+func (s Shortener) CheckValidURL(originalURL string) (err error) {
+	// Проверяем корректность URL
+	_, err = url.ParseRequestURI(originalURL)
+
+	return err
+}
+
 // Add - Добавление новой ссылки
 func (s Shortener) Add(originalURL string) (string, error) {
-	// Проверяем является ли переданная строка корректной ссылкой
-	if _, err := url.ParseRequestURI(originalURL); err != nil {
+	// Валидация ссылки
+	if err := s.CheckValidURL(originalURL); err != nil {
 		return "", err
 	}
 
@@ -75,6 +85,32 @@ func (s Shortener) Add(originalURL string) (string, error) {
 	}
 
 	return s.GetURLFromPrefix(URL.Prefix)
+}
+
+// AddMany - множественное создание сокращённых ссылок
+func (s Shortener) AddMany(originalURLs []string) (mapURLs map[string]string, err error) {
+	// Проверяем все ссылки на валидность и заполняем URLs
+	URLs := make([]model.URL, 0, len(originalURLs))
+	for _, originalURL := range originalURLs {
+		if err = s.CheckValidURL(originalURL); err != nil {
+			return
+		}
+
+		URLs = append(URLs, model.New(s.getNewPrefix(), originalURL))
+	}
+
+	// Пытаемся сохранить данные в базе
+	err = s.Rep.SetMany(URLs)
+	if err != nil {
+		return
+	}
+
+	mapURLs = make(map[string]string)
+	for _, URL := range URLs {
+		mapURLs[URL.OriginalURL] = URL.Prefix
+	}
+
+	return
 }
 
 // getNewPrefix - Получение нового префикса

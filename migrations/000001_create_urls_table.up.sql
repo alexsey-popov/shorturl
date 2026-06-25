@@ -10,5 +10,5 @@ CREATE TABLE urls (
 CREATE UNIQUE INDEX idx_urls_prefix_unique ON urls(prefix);
 
 
--- Индекс для поиска по оригинальной ссылке
-CREATE INDEX idx_urls_original_url ON urls(original_url);
+-- Индекс уникальности для оригинальной ссылки
+CREATE UNIQUE INDEX idx_urls_original_url_unique ON urls(original_url);

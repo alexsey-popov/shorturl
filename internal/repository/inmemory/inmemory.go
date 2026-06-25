@@ -23,13 +23,26 @@ func New() *InMemory {
 	}
 }
 
-// Set - Фиксируем originalURL за значением prefix
+// Set - Сохраняем originalURL за значением prefix
 func (rep *InMemory) Set(URL model.URL) error {
 	// Защищаем map от одновременной записи из разных горутин
 	rep.mu.Lock()
 	defer rep.mu.Unlock()
 
 	rep.data[URL.Prefix] = URL
+
+	return nil
+}
+
+// SetMany - Сохраняем несколько ссылок
+func (rep *InMemory) SetMany(URLs []model.URL) error {
+	// Записываем данные в память
+	for _, URL := range URLs {
+		err := rep.Set(URL)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

@@ -143,6 +143,19 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Создаём слайс оригинальных ссылок и заполняем его
+	originalURLs := make([]string, 0, len(requestItems))
+	for _, item := range requestItems {
+		originalURLs = append(originalURLs, item.OriginalURL)
+	}
+
+	// Передаём слайс оригинальных ссылок на создание
+	mapURLs, err := shortener.AddMany(originalURLs)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	type responseItem struct {
 		Prefix   string `json:"correlation_id"`
 		ShortURL string `json:"short_url"`
@@ -150,14 +163,7 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	responseItems := make([]responseItem, 0, len(requestItems))
 
 	for _, item := range requestItems {
-		// Получаем сокращённую ссылку
-		shortURL, err := shortener.Add(item.OriginalURL)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		responseItems = append(responseItems, responseItem{Prefix: item.Prefix, ShortURL: shortURL})
+		responseItems = append(responseItems, responseItem{Prefix: item.Prefix, ShortURL: mapURLs[item.OriginalURL]})
 	}
 
 	// Подготавливаем json ответ

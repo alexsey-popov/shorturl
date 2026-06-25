@@ -23,7 +23,7 @@ func (rep *InFile) MarshalJSON() ([]byte, error) {
 	return json.Marshal(rep.data)
 }
 
-// Set - Фиксируем originalURL за значением prefix
+// Set - Сохраняем originalURL за значением prefix
 func (rep *InFile) Set(URL model.URL) error {
 	// Защищаем файл от конкурентного доступа
 	rep.mu.Lock()
@@ -33,6 +33,33 @@ func (rep *InFile) Set(URL model.URL) error {
 	err := rep.data.Set(URL)
 	if err != nil {
 		return err
+	}
+
+	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(rep.filename, jsonData, 0666)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetMany - Сохраняем несколько ссылок
+func (rep *InFile) SetMany(URLs []model.URL) error {
+	// Защищаем файл от конкурентного доступа
+	rep.mu.Lock()
+	defer rep.mu.Unlock()
+
+	for _, URL := range URLs {
+		// Записываем данные в память
+		err := rep.data.Set(URL)
+		if err != nil {
+			return err
+		}
 	}
 
 	jsonData, err := json.MarshalIndent(rep.data, "", "  ")

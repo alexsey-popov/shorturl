@@ -10,7 +10,7 @@ type InDB struct {
 	DB *sql.DB
 }
 
-// Set - Фиксируем originalURL за значением prefix
+// Set - Сохраняем originalURL за значением prefix
 func (rep *InDB) Set(URL model.URL) error {
 	_, err := rep.DB.Exec(
 		"INSERT INTO urls (prefix, original_url) VALUES ($1, $2)",
@@ -23,6 +23,31 @@ func (rep *InDB) Set(URL model.URL) error {
 	}
 
 	return nil
+}
+
+// SetMany - Сохраняем несколько ссылок
+func (rep *InDB) SetMany(URLs []model.URL) error {
+	// Создаём транзакцию и
+	tx, err := rep.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	for _, URL := range URLs {
+		_, err := tx.Exec(
+			"INSERT INTO urls (prefix, original_url) VALUES ($1, $2)",
+			URL.Prefix,
+			URL.OriginalURL,
+		)
+
+		if err != nil {
+			tx.Rollback()
+
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 // Get - получение ссылки на редирект по префиксу
