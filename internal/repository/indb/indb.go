@@ -2,8 +2,12 @@ package indb
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/alexsey-popov/shorturl/internal/model"
+	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type InDB struct {
@@ -19,6 +23,16 @@ func (rep *InDB) Set(URL model.URL) error {
 	)
 
 	if err != nil {
+		// Если произошла ошибка при выполнении запроса - пытаемся её классифицировать
+		// Если произошла ошибка уникальности - пытаемся найти подходящую запись по OriginalURL
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			diffURL, err2 := rep.FindFromOriginal(URL.OriginalURL)
+			if err2 == nil {
+				return errors2.NewErrOriginalURLConflict(diffURL, err)
+			}
+		}
+
 		return err
 	}
 

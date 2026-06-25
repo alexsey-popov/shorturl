@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -10,7 +11,7 @@ import (
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
-	"github.com/alexsey-popov/shorturl/pkg/errors"
+	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -53,7 +54,7 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.Plain {
-		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		http.Error(rw, errors2.ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -67,6 +68,18 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	// Получаем сокращённую ссылку
 	shortURL, err := shortener.Add(string(originalURL))
 	if err != nil {
+		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
+		// и мы можем отдать пользователю уже существующую shortURL
+		var conflictErr *errors2.OriginalURLConflictError
+		if errors.As(err, &conflictErr) {
+			diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
+			if err2 == nil {
+				rw.Header().Set("Content-Type", contentType.Plain)
+				rw.WriteHeader(http.StatusConflict)
+				rw.Write([]byte(diffShortURL))
+			}
+		}
+
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -80,7 +93,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
-		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		http.Error(rw, errors2.ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -96,6 +109,18 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 	// Получаем сокращённую ссылку
 	shortURL, err := shortener.Add(request.Url)
 	if err != nil {
+		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
+		// и мы можем отдать пользователю уже существующую shortURL
+		var conflictErr *errors2.OriginalURLConflictError
+		if errors.As(err, &conflictErr) {
+			diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
+			if err2 == nil {
+				rw.Header().Set("Content-Type", contentType.Plain)
+				rw.WriteHeader(http.StatusConflict)
+				rw.Write([]byte(diffShortURL))
+			}
+		}
+
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -122,7 +147,7 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
-		http.Error(rw, errors.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		http.Error(rw, errors2.ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -139,7 +164,7 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(requestItems) == 0 {
-		http.Error(rw, errors.ErrEmptyBatch.Error(), http.StatusBadRequest)
+		http.Error(rw, errors2.ErrEmptyBatch.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -181,10 +206,8 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 
 // HandleFails - обработчик для ошибочных запросов
 func HandleFails(w http.ResponseWriter, r *http.Request) {
-	//TODO:: Переделай под http.Error
 	w.Header().Set("Content-Type", contentType.Plain)
-	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte(errors.ErrInvalidRequest.Error()))
+	http.Error(w, errors2.ErrInvalidRequest.Error(), http.StatusBadRequest)
 }
 
 // HandleGetPing - Обработчик Get запроса /ping

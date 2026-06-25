@@ -55,7 +55,7 @@ func NewDBShortener(db *sql.DB) Shortener {
 	}
 }
 
-// CheckValidURL Валидация ссылки
+// CheckValidURL - валидация ссылки
 func (s Shortener) CheckValidURL(originalURL string) (err error) {
 	// Проверяем корректность URL
 	_, err = url.ParseRequestURI(originalURL)
@@ -70,18 +70,11 @@ func (s Shortener) Add(originalURL string) (string, error) {
 		return "", err
 	}
 
-	// Проверяем существование originalURL в базе
-	URL, err := s.Rep.FindFromOriginal(originalURL)
+	URL := model.New(s.getNewPrefix(), originalURL)
 
-	// Если originalURL не нашли - добавляем новый элемент
+	err := s.Rep.Set(URL)
 	if err != nil {
-		URL = model.New(s.getNewPrefix(), originalURL)
-
-		err = s.Rep.Set(URL)
-
-		if err != nil {
-			return "", err
-		}
+		return "", err
 	}
 
 	return s.GetURLFromPrefix(URL.Prefix)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/alexsey-popov/shorturl/internal/repository/inmemory"
+	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 )
 
 // InFile - хранение данных в файле.
@@ -25,12 +26,19 @@ func (rep *InFile) MarshalJSON() ([]byte, error) {
 
 // Set - Сохраняем originalURL за значением prefix
 func (rep *InFile) Set(URL model.URL) error {
+	// Сначала пытаемся найти оригинальную ссылку в файле
+	// Если нашли - возвращаем специфическую ошибку с данными по существующей ссылке
+	diffURL, err := rep.FindFromOriginal(URL.OriginalURL)
+	if err == nil {
+		return errors2.NewErrOriginalURLConflict(diffURL, errors2.ErrOriginalURLConflict)
+	}
+
 	// Защищаем файл от конкурентного доступа
 	rep.mu.Lock()
 	defer rep.mu.Unlock()
 
 	// Записываем данные в память
-	err := rep.data.Set(URL)
+	err = rep.data.Set(URL)
 	if err != nil {
 		return err
 	}
