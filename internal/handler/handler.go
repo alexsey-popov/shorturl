@@ -77,6 +77,8 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 				rw.Header().Set("Content-Type", contentType.Plain)
 				rw.WriteHeader(http.StatusConflict)
 				rw.Write([]byte(diffShortURL))
+
+				return
 			}
 		}
 
@@ -118,6 +120,8 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 				rw.Header().Set("Content-Type", contentType.Plain)
 				rw.WriteHeader(http.StatusConflict)
 				rw.Write([]byte(diffShortURL))
+
+				return
 			}
 		}
 
