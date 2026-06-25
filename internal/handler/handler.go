@@ -117,11 +117,22 @@ func HandlePostJson(rw http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &conflictErr) {
 			diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
 			if err2 == nil {
-				rw.Header().Set("Content-Type", contentType.JSON)
-				rw.WriteHeader(http.StatusConflict)
-				rw.Write([]byte(diffShortURL))
 
-				return
+				// Подготавливаем json ответ
+				response, err3 := json.Marshal(
+					struct {
+						Result string `json:"result"`
+					}{
+						Result: diffShortURL,
+					},
+				)
+				if err3 == nil {
+					rw.Header().Set("Content-Type", contentType.JSON)
+					rw.WriteHeader(http.StatusConflict)
+					rw.Write(response)
+
+					return
+				}
 			}
 		}
 
