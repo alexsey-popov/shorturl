@@ -165,7 +165,7 @@ func TestHandlePostJson(t *testing.T) {
 			r.Header.Set("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 
-			HandlePostJson(w, r)
+			HandlePostJSON(w, r)
 
 			res := w.Result()
 			defer res.Body.Close()
