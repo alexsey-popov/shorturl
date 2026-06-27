@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"net/http"
 
@@ -37,25 +38,11 @@ func main() {
 	// Если указаны данные для подключения в БД - используем БД
 	case config.Server.DSN != "":
 		// Создаём объект взаимодействия с базой
-		db, err := sql.Open("pgx", config.Server.DSN)
+		db, err := connectDB(config.Server.DSN)
 		if err != nil {
 			sugar.Fatal(err)
 		}
 		defer db.Close()
-
-		// Запуск миграций
-		driver, err := postgres.WithInstance(db, &postgres.Config{})
-		if err != nil {
-			sugar.Fatal(err)
-		}
-		m, err := migrate.NewWithDatabaseInstance(
-			"file://migrations",
-			"postgres", driver)
-		if err != nil {
-			sugar.Fatal(err)
-		}
-
-		m.Up() // or m.Steps(2) if you want to explicitly set the number of migrations to run
 
 		handler.UseDBRepository(db)
 
@@ -68,7 +55,7 @@ func main() {
 
 		sugar.Infoln("Use file repository")
 	default:
-		sugar.Infoln("Use database repository")
+		sugar.Infoln("Use memory repository")
 	}
 
 	// Объявляем роуты
@@ -83,7 +70,7 @@ func main() {
 	r.Post("/", handler.HandlePost)
 	r.Post("/api/shorten/batch", handler.HandlePostBatch)
 	r.Post("/api/shorten", handler.HandlePostJSON)
-	r.Get("/ping", handler.HandleGetPing)
+	r.Get("/ping", handler.HandleGetPing(sugar))
 	r.Get("/{id}", handler.HandleGet)
 	r.MethodNotAllowed(handler.HandleFails)
 
@@ -92,4 +79,36 @@ func main() {
 	if err != nil {
 		sugar.Fatal(err)
 	}
+}
+
+// connectDB - Подключение в БД и выполнение миграций
+func connectDB(serverDSN string) (*sql.DB, error) {
+	// Создаём объект взаимодействия с базой
+	db, err := sql.Open("pgx", serverDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	// Создаём драйвер для миграций
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return db, err
+	}
+
+	//   Создаём объект миграции на основе файлов с миграциями и подключения
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migrations",
+		"postgres", driver)
+	if err != nil {
+		return db, err
+	}
+
+	// Проводим миграции
+	err = m.Up()
+	// Ошибку migrate.ErrNoChange пропускаем
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return db, err
+	}
+
+	return db, nil
 }

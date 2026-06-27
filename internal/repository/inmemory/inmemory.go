@@ -103,3 +103,8 @@ func (rep *InMemory) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(slice)
 }
+
+// Ping - проверка соединения (считаем, что оно всегда есть)
+func (rep *InMemory) Ping() error {
+	return nil
+}

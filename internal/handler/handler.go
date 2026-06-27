@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 
-	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -226,26 +225,17 @@ func HandleFails(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleGetPing - Обработчик Get запроса /ping
-func HandleGetPing(w http.ResponseWriter, r *http.Request) {
-	// Создаём объект взаимодействия с базой
-	db, err := sql.Open("pgx", config.Server.DSN)
+func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Проверяем соединение и в случае ошибки - пишем в чём дело
+		if err := shortener.Rep.Ping(); err != nil {
+			sugar.Error(err)
 
-	// Если мы не встретили ошибку, то обещаем закрыть соединение и пингуем его
-	if err == nil {
-		defer db.Close()
-
-		err = db.Ping()
-
-		// Если при мы не получили ошибку, то возвращаем статус 200
-		if err == nil {
-			w.WriteHeader(http.StatusOK)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 			return
 		}
-	}
 
-	// Если мы дошли до этого этапа - значит где то была ошибка
-	w.WriteHeader(http.StatusInternalServerError)
-	log.Println("error is", err)
-	w.Write([]byte(err.Error()))
+		w.WriteHeader(http.StatusOK)
+	}
 }

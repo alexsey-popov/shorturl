@@ -24,9 +24,9 @@ func (rep *InDB) Set(URL model.URL) error {
 
 	if err != nil {
 		// Если произошла ошибка при выполнении запроса - пытаемся её классифицировать
-		// Если произошла ошибка уникальности - пытаемся найти подходящую запись по OriginalURL
+		// Если произошла ошибка уникальности по полю original_url - пытаемся найти подходящую запись по OriginalURL
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation && pgErr.ConstraintName == "original_url" {
 			diffURL, err2 := rep.FindFromOriginal(URL.OriginalURL)
 			if err2 == nil {
 				return errors2.NewErrOriginalURLConflict(diffURL, err)
@@ -41,11 +41,12 @@ func (rep *InDB) Set(URL model.URL) error {
 
 // SetMany - Сохраняем несколько ссылок
 func (rep *InDB) SetMany(URLs []model.URL) error {
-	// Создаём транзакцию и
+	// Создаём транзакцию
 	tx, err := rep.DB.Begin()
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 
 	for _, URL := range URLs {
 		_, err := tx.Exec(
@@ -55,8 +56,6 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 		)
 
 		if err != nil {
-			tx.Rollback()
-
 			return err
 		}
 	}
@@ -86,6 +85,11 @@ func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error)
 	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL)
 
 	return
+}
+
+// Ping - проверка соединения (считаем, что оно всегда есть)
+func (rep *InDB) Ping() error {
+	return rep.DB.Ping()
 }
 
 func New(db *sql.DB) *InDB {

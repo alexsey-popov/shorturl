@@ -122,3 +122,8 @@ func New(filename string) (*InFile, error) {
 
 	return &rep, nil
 }
+
+// Ping - проверка соединения (считаем, что оно всегда есть)
+func (rep *InFile) Ping() error {
+	return nil
+}

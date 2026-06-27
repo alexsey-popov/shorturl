@@ -17,20 +17,20 @@ type ServerConf struct {
 }
 
 // SetServerAddress - изменение адреса сервера
-func (s ServerConf) SetServerAddress(value string) error {
+func (s *ServerConf) SetServerAddress(value string) error {
 	// Проверка корректности указанного ip
 	serverAddr, err := net.ResolveTCPAddr("tcp", value)
 	if err != nil {
 		return errorsPkg.ErrInvalidAddress
 	}
 
-	Server.NetAddress = serverAddr.String()
+	s.NetAddress = serverAddr.String()
 
 	return nil
 }
 
 // SetBaseURL - изменение URL сервера
-func (s ServerConf) SetBaseURL(value string) error {
+func (s *ServerConf) SetBaseURL(value string) error {
 	parsedURL, err := url.ParseRequestURI(value)
 	if err != nil {
 		return err
@@ -40,22 +40,22 @@ func (s ServerConf) SetBaseURL(value string) error {
 		return errorsPkg.ErrInvalidAddress
 	}
 
-	Server.Scheme = parsedURL.Scheme
-	Server.Host = parsedURL.Host
+	s.Scheme = parsedURL.Scheme
+	s.Host = parsedURL.Host
 
 	return nil
 }
 
 // SetFilePath - изменение файла хранения данных
-func (s ServerConf) SetFilePath(value string) error {
-	Server.FilePath = value
+func (s *ServerConf) SetFilePath(value string) error {
+	s.FilePath = value
 
 	return nil
 }
 
 // SetDBDsn - изменение файла хранения данных
-func (s ServerConf) SetDSN(value string) error {
-	Server.DSN = value
+func (s *ServerConf) SetDSN(value string) error {
+	s.DSN = value
 
 	return nil
 }

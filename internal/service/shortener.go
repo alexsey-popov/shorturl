@@ -22,6 +22,8 @@ type Repository interface {
 	Get(prefix string) (URL model.URL, err error)
 	// FindFromOriginal - Поиск значений по значению originalURL
 	FindFromOriginal(originalURL string) (URL model.URL, err error)
+	// Ping - Проверка соединения
+	Ping() error
 }
 
 // Shortener - Сервис для сокращения ссылок
