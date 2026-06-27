@@ -1,11 +1,12 @@
 package config
 
 import (
+	"errors"
 	"net"
 	"net/url"
-
-	errorsPkg "github.com/alexsey-popov/shorturl/pkg/errors"
 )
+
+var ErrInvalidAddress = errors.New("некорректный адрес")
 
 // ServerConf - Структура для хранения конфигурации
 type ServerConf struct {
@@ -21,7 +22,7 @@ func (s *ServerConf) SetServerAddress(value string) error {
 	// Проверка корректности указанного ip
 	serverAddr, err := net.ResolveTCPAddr("tcp", value)
 	if err != nil {
-		return errorsPkg.ErrInvalidAddress
+		return ErrInvalidAddress
 	}
 
 	s.NetAddress = serverAddr.String()
@@ -37,7 +38,7 @@ func (s *ServerConf) SetBaseURL(value string) error {
 	}
 
 	if parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return errorsPkg.ErrInvalidAddress
+		return ErrInvalidAddress
 	}
 
 	s.Scheme = parsedURL.Scheme

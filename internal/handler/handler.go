@@ -16,6 +16,12 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+var (
+	ErrInvalidContentType = errors.New("некорректный тип содержимого запроса")
+	ErrInvalidRequest     = errors.New("некорректный запрос")
+	ErrEmptyBatch         = errors.New("пустая пачка данных")
+)
+
 // shortener - Хранилище ссылок (по умолчанию в памяти)
 var shortener service.Shortener = service.NewMemoryShortener()
 
@@ -53,7 +59,7 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.Plain {
-		http.Error(rw, errors2.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -94,7 +100,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
-		http.Error(rw, errors2.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -161,7 +167,7 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
-		http.Error(rw, errors2.ErrInvalidContentType.Error(), http.StatusBadRequest)
+		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -178,7 +184,7 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(requestItems) == 0 {
-		http.Error(rw, errors2.ErrEmptyBatch.Error(), http.StatusBadRequest)
+		http.Error(rw, ErrEmptyBatch.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -221,7 +227,7 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 // HandleFails - обработчик для ошибочных запросов
 func HandleFails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType.Plain)
-	http.Error(w, errors2.ErrInvalidRequest.Error(), http.StatusBadRequest)
+	http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 }
 
 // HandleGetPing - Обработчик Get запроса /ping

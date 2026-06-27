@@ -11,6 +11,8 @@ import (
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 )
 
+var ErrOriginalURLConflict = errors.New("эта ссылка уже сокращалась ранее")
+
 // InFile - хранение данных в файле.
 // inmemory.InMemory вынесен в отдельный атрибут для того, чтобы у файла был свой мьютекс
 type InFile struct {
@@ -30,7 +32,7 @@ func (rep *InFile) Set(URL model.URL) error {
 	// Если нашли - возвращаем специфическую ошибку с данными по существующей ссылке
 	diffURL, err := rep.FindFromOriginal(URL.OriginalURL)
 	if err == nil {
-		return errors2.NewErrOriginalURLConflict(diffURL, errors2.ErrOriginalURLConflict)
+		return errors2.NewErrOriginalURLConflict(diffURL, ErrOriginalURLConflict)
 	}
 
 	// Защищаем файл от конкурентного доступа

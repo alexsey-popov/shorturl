@@ -2,13 +2,15 @@ package inmemory
 
 import (
 	"encoding/json"
+	"errors"
 	"maps"
 	"slices"
 	"sync"
 
 	"github.com/alexsey-popov/shorturl/internal/model"
-	"github.com/alexsey-popov/shorturl/pkg/errors"
 )
+
+var ErrURLNotFound = errors.New("url не найден")
 
 // InMemory - хранение данных в памяти
 type InMemory struct {
@@ -57,7 +59,7 @@ func (rep *InMemory) Get(prefix string) (model.URL, error) {
 		return item, nil
 	}
 
-	return model.URL{}, errors.ErrURLNotFound
+	return model.URL{}, ErrURLNotFound
 }
 
 // FindFromOriginal - Поиск prefix по originalURL
@@ -72,7 +74,7 @@ func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 		}
 	}
 
-	return model.URL{}, errors.ErrURLNotFound
+	return model.URL{}, ErrURLNotFound
 }
 
 // String - приведение структуры к строке
