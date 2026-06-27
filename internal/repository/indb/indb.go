@@ -41,6 +41,10 @@ func (rep *InDB) Set(URL model.URL) error {
 
 // SetMany - Сохраняем несколько ссылок
 func (rep *InDB) SetMany(URLs []model.URL) error {
+	// Создаём подготовленный запрос
+	stmt, err := rep.DB.Prepare("INSERT INTO urls (prefix, original_url) SELECT * FROM UNNEST($1::text[], $2::text[])")
+	defer stmt.Close()
+
 	pref := make([]string, len(URLs))
 	orig := make([]string, len(URLs))
 
@@ -49,11 +53,7 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 		orig[i] = url.OriginalURL
 	}
 
-	_, err := rep.DB.Exec(
-		"INSERT INTO urls (prefix, original_url) SELECT * FROM UNNEST($1::text[], $2::text[])",
-		pref,
-		orig,
-	)
+	_, err = stmt.Exec(pref, orig)
 	if err != nil {
 		return err
 	}
