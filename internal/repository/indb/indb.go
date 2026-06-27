@@ -26,7 +26,7 @@ func (rep *InDB) Set(URL model.URL) error {
 		// Если произошла ошибка при выполнении запроса - пытаемся её классифицировать
 		// Если произошла ошибка уникальности по полю original_url - пытаемся найти подходящую запись по OriginalURL
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation && pgErr.ConstraintName == "original_url" {
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation && pgErr.ConstraintName == "idx_urls_original_url_unique" {
 			diffURL, err2 := rep.FindFromOriginal(URL.OriginalURL)
 			if err2 == nil {
 				return errors2.NewErrOriginalURLConflict(diffURL, err)
