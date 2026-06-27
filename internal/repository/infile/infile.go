@@ -64,9 +64,9 @@ func (rep *InFile) SetMany(URLs []model.URL) error {
 	rep.mu.Lock()
 	defer rep.mu.Unlock()
 
-	for _, URL := range URLs {
+	for _, url := range URLs {
 		// Записываем данные в память
-		err := rep.data.Set(URL)
+		err := rep.data.Set(url)
 		if err != nil {
 			return err
 		}

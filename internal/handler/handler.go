@@ -113,28 +113,30 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// response - Структура ответа
+	type response struct {
+		Result string `json:"result"`
+	}
+
 	// Получаем сокращённую ссылку
 	shortURL, err := shortener.Add(request.URL)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
-		var conflictErr *errors2.OriginalURLConflictError
-		if errors.As(err, &conflictErr) {
+		if conflictErr, ok := errors.AsType[*errors2.OriginalURLConflictError](err); ok {
 			diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
 			if err2 == nil {
 
 				// Подготавливаем json ответ
-				response, err3 := json.Marshal(
-					struct {
-						Result string `json:"result"`
-					}{
+				responseJSON, err3 := json.Marshal(
+					response{
 						Result: diffShortURL,
 					},
 				)
 				if err3 == nil {
 					rw.Header().Set("Content-Type", contentType.JSON)
 					rw.WriteHeader(http.StatusConflict)
-					rw.Write(response)
+					rw.Write(responseJSON)
 
 					return
 				}
@@ -146,10 +148,8 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Подготавливаем json ответ
-	response, err := json.Marshal(
-		struct {
-			Result string `json:"result"`
-		}{
+	responseJSON, err := json.Marshal(
+		response{
 			Result: shortURL,
 		},
 	)
@@ -160,7 +160,7 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Set("Content-Type", contentType.JSON)
 	rw.WriteHeader(http.StatusCreated)
-	rw.Write(response)
+	rw.Write(responseJSON)
 }
 
 // HandlePostBatch - Обработчик для запроса Post /api/shorten/batch (массовое создание)

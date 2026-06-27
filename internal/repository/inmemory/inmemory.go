@@ -39,8 +39,8 @@ func (rep *InMemory) Set(URL model.URL) error {
 // SetMany - Сохраняем несколько ссылок
 func (rep *InMemory) SetMany(URLs []model.URL) error {
 	// Записываем данные в память
-	for _, URL := range URLs {
-		err := rep.Set(URL)
+	for _, url := range URLs {
+		err := rep.Set(url)
 		if err != nil {
 			return err
 		}

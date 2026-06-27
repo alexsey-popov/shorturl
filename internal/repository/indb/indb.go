@@ -41,26 +41,24 @@ func (rep *InDB) Set(URL model.URL) error {
 
 // SetMany - Сохраняем несколько ссылок
 func (rep *InDB) SetMany(URLs []model.URL) error {
-	// Создаём транзакцию
-	tx, err := rep.DB.Begin()
+	pref := make([]string, len(URLs))
+	orig := make([]string, len(URLs))
+
+	for i, url := range URLs {
+		pref[i] = url.Prefix
+		orig[i] = url.OriginalURL
+	}
+
+	_, err := rep.DB.Exec(
+		"INSERT INTO urls (prefix, original_url) SELECT * FROM UNNEST($1::text[], $2::text[])",
+		pref,
+		orig,
+	)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
 
-	for _, URL := range URLs {
-		_, err := tx.Exec(
-			"INSERT INTO urls (prefix, original_url) VALUES ($1, $2)",
-			URL.Prefix,
-			URL.OriginalURL,
-		)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
+	return nil
 }
 
 // Get - получение ссылки на редирект по префиксу
