@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -23,7 +24,7 @@ func main() {
 	// Создаём логгер
 	l, err := zap.NewDevelopment()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("ошибка при создании логгера: %w", err)
 	}
 	defer l.Sync()
 	sugar := l.Sugar()
@@ -46,16 +47,16 @@ func main() {
 
 		handler.UseDBRepository(db)
 
-		sugar.Infoln("Use database repository")
+		sugar.Infoln("В качестве хранилища используется БД")
 	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
 	case config.Server.FilePath != "":
 		if err = handler.UseFileRepository(); err != nil {
 			sugar.Fatal(err)
 		}
 
-		sugar.Infoln("Use file repository")
+		sugar.Infoln("В качестве хранилища используется файл")
 	default:
-		sugar.Infoln("Use memory repository")
+		sugar.Infoln("В качестве хранилища используется ОЗУ")
 	}
 
 	// Объявляем роуты
@@ -77,7 +78,7 @@ func main() {
 	// Поднимает сервер
 	err = http.ListenAndServe(config.Server.NetAddress, r)
 	if err != nil {
-		sugar.Fatal(err)
+		sugar.Fatalf("ошибка в работе сервера: %w", err)
 	}
 }
 
@@ -86,13 +87,13 @@ func connectDB(serverDSN string) (*sql.DB, error) {
 	// Создаём объект взаимодействия с базой
 	db, err := sql.Open("pgx", serverDSN)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ошибка при подключении к БД: %w", err)
 	}
 
 	// Создаём драйвер для миграций
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		return db, err
+		return db, fmt.Errorf("ошибка при создании драйвера БД: %w", err)
 	}
 
 	//   Создаём объект миграции на основе файлов с миграциями и подключения
@@ -100,14 +101,14 @@ func connectDB(serverDSN string) (*sql.DB, error) {
 		"file://migrations",
 		"postgres", driver)
 	if err != nil {
-		return db, err
+		return db, fmt.Errorf("ошибка при подготовке к миграций БД: %w", err)
 	}
 
 	// Проводим миграции
 	err = m.Up()
 	// Ошибку migrate.ErrNoChange пропускаем
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return db, err
+		return db, fmt.Errorf("ошибка при запуске миграций БД: %w", err)
 	}
 
 	return db, nil

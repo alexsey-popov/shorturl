@@ -3,6 +3,7 @@ package indb
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/alexsey-popov/shorturl/internal/model"
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
@@ -33,7 +34,7 @@ func (rep *InDB) Set(URL model.URL) error {
 			}
 		}
 
-		return err
+		return fmt.Errorf("ошибка при выполнении запроса к БД: %w", err)
 	}
 
 	return nil
@@ -55,7 +56,7 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 
 	_, err = stmt.Exec(pref, orig)
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка при выполнении запроса к БД: %w", err)
 	}
 
 	return nil

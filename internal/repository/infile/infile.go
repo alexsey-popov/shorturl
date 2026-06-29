@@ -3,6 +3,7 @@ package infile
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 
@@ -47,12 +48,12 @@ func (rep *InFile) Set(URL model.URL) error {
 
 	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка при сериализации данных: %w", err)
 	}
 
 	err = os.WriteFile(rep.filename, jsonData, 0666)
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка при записи в файл: %w", err)
 	}
 
 	return nil
@@ -74,12 +75,12 @@ func (rep *InFile) SetMany(URLs []model.URL) error {
 
 	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка при сериализации данных: %w", err)
 	}
 
 	err = os.WriteFile(rep.filename, jsonData, 0666)
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка при записи в файл: %w", err)
 	}
 
 	return nil
@@ -105,13 +106,13 @@ func New(filename string) (*InFile, error) {
 	// Читаем данные из файла
 	bytesData, err := os.ReadFile(filename)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
+		return nil, fmt.Errorf("ошибка при чтении файла: %w", err)
 	}
 	// Файл не пустой - заполняем репозиторий
 	if len(bytesData) > 0 {
 		data := make([]model.URL, 0)
 		if err = json.Unmarshal(bytesData, &data); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ошибка при сериализации данных: %w", err)
 		}
 
 		for _, item := range data {
