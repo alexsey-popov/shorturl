@@ -24,7 +24,7 @@ func main() {
 	// Создаём логгер
 	l, err := zap.NewDevelopment()
 	if err != nil {
-		log.Fatalf("ошибка при создании логгера: %w", err)
+		log.Fatalf("ошибка при создании логгера: %v", err)
 	}
 	defer l.Sync()
 	sugar := l.Sugar()
