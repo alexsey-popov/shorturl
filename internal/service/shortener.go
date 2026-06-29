@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"net/url"
 
-	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/alexsey-popov/shorturl/internal/repository/indb"
 	"github.com/alexsey-popov/shorturl/internal/repository/infile"
@@ -28,32 +27,36 @@ type Repository interface {
 
 // Shortener - Сервис для сокращения ссылок
 type Shortener struct {
-	Rep Repository
+	Rep     Repository
+	BaseURL string
 }
 
 // NewMemoryShortener - Конструктор Shortener для хранения данных в памяти
-func NewMemoryShortener() Shortener {
+func NewMemoryShortener(baseURL string) Shortener {
 	return Shortener{
-		Rep: inmemory.New(),
+		Rep:     inmemory.New(),
+		BaseURL: baseURL,
 	}
 }
 
 // NewFileShortener - Конструктор Shortener для хранения данных внутри файла
-func NewFileShortener() (Shortener, error) {
-	rep, err := infile.New(config.Server.FilePath)
+func NewFileShortener(baseURL string, filepath string) (Shortener, error) {
+	rep, err := infile.New(filepath)
 	if err != nil {
-		return Shortener{}, err
+		return Shortener{BaseURL: baseURL}, err
 	}
 
 	return Shortener{
-		Rep: rep,
+		Rep:     rep,
+		BaseURL: baseURL,
 	}, nil
 }
 
 // NewDBShortener - Конструктор Shortener для хранения данных в базе данных
-func NewDBShortener(db *sql.DB) Shortener {
+func NewDBShortener(baseURL string, db *sql.DB) Shortener {
 	return Shortener{
-		Rep: indb.New(db),
+		Rep:     indb.New(db),
+		BaseURL: baseURL,
 	}
 }
 
@@ -120,5 +123,5 @@ func (s Shortener) getNewPrefix() string {
 
 // GetURLFromPrefix - Получение сокращённого url по префиксу
 func (s Shortener) GetURLFromPrefix(prefix string) (string, error) {
-	return url.JoinPath(config.Server.Scheme+"://", config.Server.Host, prefix)
+	return url.JoinPath(s.BaseURL, prefix)
 }

@@ -22,24 +22,24 @@ var (
 	ErrEmptyBatch         = errors.New("пустая пачка данных")
 )
 
-// shortener - Хранилище ссылок (по умолчанию в памяти)
-var shortener service.Shortener = service.NewMemoryShortener()
+// shortener - Хранилище ссылок
+var shortener service.Shortener
 
 // UseDBRepository использование базы данных
-func UseDBRepository(db *sql.DB) {
-	shortener = service.NewDBShortener(db)
+func UseDBRepository(baseURL string, db *sql.DB) {
+	shortener = service.NewDBShortener(baseURL, db)
 }
 
 // UseFileRepository использование файлового хранилища
-func UseFileRepository() (err error) {
-	shortener, err = service.NewFileShortener()
+func UseFileRepository(baseURL string, filepath string) (err error) {
+	shortener, err = service.NewFileShortener(baseURL, filepath)
 
 	return
 }
 
 // UseMemoryRepository использование хранилища в памяти
-func UseMemoryRepository() {
-	shortener = service.NewMemoryShortener()
+func UseMemoryRepository(baseURL string) {
+	shortener = service.NewMemoryShortener(baseURL)
 }
 
 // HandleGet - Обработчик Get запроса
