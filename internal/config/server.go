@@ -1,11 +1,12 @@
 package config
 
 import (
+	"errors"
 	"net"
 	"net/url"
-
-	errorsPkg "github.com/alexsey-popov/shorturl/pkg/errors"
 )
+
+var ErrInvalidAddress = errors.New("некорректный адрес")
 
 // ServerConf - Структура для хранения конфигурации
 type ServerConf struct {
@@ -13,41 +14,49 @@ type ServerConf struct {
 	Host       string
 	NetAddress string
 	FilePath   string
+	DSN        string
 }
 
 // SetServerAddress - изменение адреса сервера
-func (s ServerConf) SetServerAddress(value string) error {
+func (s *ServerConf) SetServerAddress(value string) error {
 	// Проверка корректности указанного ip
 	serverAddr, err := net.ResolveTCPAddr("tcp", value)
 	if err != nil {
-		return errorsPkg.ErrInvalidAddress
+		return ErrInvalidAddress
 	}
 
-	Server.NetAddress = serverAddr.String()
+	s.NetAddress = serverAddr.String()
 
 	return nil
 }
 
 // SetBaseURL - изменение URL сервера
-func (s ServerConf) SetBaseURL(value string) error {
+func (s *ServerConf) SetBaseURL(value string) error {
 	parsedURL, err := url.ParseRequestURI(value)
 	if err != nil {
 		return err
 	}
 
 	if parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return errorsPkg.ErrInvalidAddress
+		return ErrInvalidAddress
 	}
 
-	Server.Scheme = parsedURL.Scheme
-	Server.Host = parsedURL.Host
+	s.Scheme = parsedURL.Scheme
+	s.Host = parsedURL.Host
 
 	return nil
 }
 
 // SetFilePath - изменение файла хранения данных
-func (s ServerConf) SetFilePath(value string) error {
-	Server.FilePath = value
+func (s *ServerConf) SetFilePath(value string) error {
+	s.FilePath = value
+
+	return nil
+}
+
+// SetDBDsn - изменение файла хранения данных
+func (s *ServerConf) SetDSN(value string) error {
+	s.DSN = value
 
 	return nil
 }

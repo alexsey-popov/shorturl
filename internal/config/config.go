@@ -12,12 +12,16 @@ const (
 	EnvBaseURL = "BASE_URL"
 	// Название env для пути файла (используется в репозитории InFile)
 	EnvFilePath = "FILE_STORAGE_PATH"
+	// Название env для параметров подключения к БД
+	EnvDSN = "DATABASE_DSN"
 	// Название флага с адресом сервера
 	FlagServerAddress = "a"
 	// Название флага с URL сервера
 	FlagBaseURL = "b"
 	// Название флага для пути файла (используется в репозитории InFile)
 	FlagFilePath = "f"
+	// Название флага параметров подключения к БД
+	FlagDSN = "d"
 )
 
 // Server - Объект конфига (по умолчанию заполнен дефолтными значениями)
@@ -30,6 +34,7 @@ func New() ServerConf {
 		Host:       "localhost:8080",
 		NetAddress: "localhost:8080",
 		FilePath:   "infile.json",
+		DSN:        "",
 	}
 }
 
@@ -41,9 +46,11 @@ func Parse() error {
 	flag.Func(FlagServerAddress, "Адрес прослушиваемого сервера в формате ip:port", Server.SetServerAddress)
 	// URL сервера
 	flag.Func(FlagBaseURL, "Базовый адрес сервера в формате http://localhost:8080", Server.SetBaseURL)
-	// Обрабатывает флаг с URL сервера
+	// Путь до файла хранения (при использовании репозитория InFile)
 	flag.Func(FlagFilePath, "Путь до файла в котором будут храниться данные (если используется тип хранения \"В файле\")", Server.SetFilePath)
 	// Путь до файла хранения (при использовании репозитория InFile)
+	flag.Func(FlagDSN, "Параметры подключения к БД (если используется тип хранения \"База данных\")", Server.SetDSN)
+
 	flag.Parse()
 
 	// Шаг 2. Заполняем значения из переменных окружения
@@ -62,6 +69,12 @@ func Parse() error {
 	// Путь до файла хранения (при использовании репозитория InFile)
 	if filePath, ok := os.LookupEnv(EnvFilePath); ok {
 		if err := Server.SetFilePath(filePath); err != nil {
+			return err
+		}
+	}
+	// Параметры подключения к БД (при использовании репозитория InDB)
+	if DSN, ok := os.LookupEnv(EnvDSN); ok {
+		if err := Server.SetDSN(DSN); err != nil {
 			return err
 		}
 	}

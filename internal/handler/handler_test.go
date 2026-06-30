@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	"github.com/go-chi/chi/v5"
@@ -77,6 +78,8 @@ func TestHandlePost(t *testing.T) {
 			},
 		},
 	}
+
+	UseMemoryRepository(config.Server.Scheme + "://" + config.Server.Host)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -165,7 +168,7 @@ func TestHandlePostJson(t *testing.T) {
 			r.Header.Set("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 
-			HandlePostJson(w, r)
+			HandlePostJSON(w, r)
 
 			res := w.Result()
 			defer res.Body.Close()

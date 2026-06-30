@@ -2,13 +2,15 @@ package inmemory
 
 import (
 	"encoding/json"
+	"errors"
 	"maps"
 	"slices"
 	"sync"
 
 	"github.com/alexsey-popov/shorturl/internal/model"
-	"github.com/alexsey-popov/shorturl/pkg/errors"
 )
+
+var ErrURLNotFound = errors.New("url не найден")
 
 // InMemory - хранение данных в памяти
 type InMemory struct {
@@ -23,13 +25,26 @@ func New() *InMemory {
 	}
 }
 
-// Set - Фиксируем originalURL за значением prefix
+// Set - Сохраняем originalURL за значением prefix
 func (rep *InMemory) Set(URL model.URL) error {
 	// Защищаем map от одновременной записи из разных горутин
 	rep.mu.Lock()
 	defer rep.mu.Unlock()
 
 	rep.data[URL.Prefix] = URL
+
+	return nil
+}
+
+// SetMany - Сохраняем несколько ссылок
+func (rep *InMemory) SetMany(URLs []model.URL) error {
+	// Записываем данные в память
+	for _, url := range URLs {
+		err := rep.Set(url)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -44,7 +59,7 @@ func (rep *InMemory) Get(prefix string) (model.URL, error) {
 		return item, nil
 	}
 
-	return model.URL{}, errors.ErrURLNotFound
+	return model.URL{}, ErrURLNotFound
 }
 
 // FindFromOriginal - Поиск prefix по originalURL
@@ -59,7 +74,7 @@ func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 		}
 	}
 
-	return model.URL{}, errors.ErrURLNotFound
+	return model.URL{}, ErrURLNotFound
 }
 
 // String - приведение структуры к строке
@@ -89,4 +104,9 @@ func (rep *InMemory) MarshalJSON() ([]byte, error) {
 	slice := slices.Collect(maps.Values(rep.data))
 
 	return json.Marshal(slice)
+}
+
+// Ping - проверка соединения (считаем, что оно всегда есть)
+func (rep *InMemory) Ping() error {
+	return nil
 }
