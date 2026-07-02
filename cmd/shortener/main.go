@@ -34,9 +34,6 @@ func main() {
 		sugar.Fatal(err)
 	}
 
-	// Ссылка на сервис
-	baseURL := config.Server.Scheme + "://" + config.Server.Host
-
 	// Пытаемся подключить различные виды хранилищ (по умолчанию используется хранение в памяти)
 	switch {
 	// Если указаны данные для подключения в БД - используем БД
@@ -48,12 +45,12 @@ func main() {
 		}
 		defer db.Close()
 
-		handler.UseDBRepository(baseURL, db)
+		handler.UseDBRepository(config.Server.BaseURL, db)
 
 		sugar.Infoln("В качестве хранилища используется БД")
 	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
 	case config.Server.FilePath != "":
-		if err = handler.UseFileRepository(baseURL, config.Server.FilePath); err != nil {
+		if err = handler.UseFileRepository(config.Server.BaseURL, config.Server.FilePath); err != nil {
 			sugar.Fatal(err)
 		}
 
@@ -61,7 +58,7 @@ func main() {
 	default:
 		sugar.Infoln("В качестве хранилища используется ОЗУ")
 
-		handler.UseMemoryRepository(baseURL)
+		handler.UseMemoryRepository(config.Server.BaseURL)
 	}
 
 	// Объявляем роуты
