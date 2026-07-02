@@ -44,6 +44,9 @@ func (rep *InDB) Set(URL model.URL) error {
 func (rep *InDB) SetMany(URLs []model.URL) error {
 	// Создаём подготовленный запрос
 	stmt, err := rep.DB.Prepare("INSERT INTO urls (prefix, original_url) SELECT * FROM UNNEST($1::text[], $2::text[])")
+	if err != nil {
+		return fmt.Errorf("ошибка при создании подготовленного запроса к БД: %w", err)
+	}
 	defer stmt.Close()
 
 	pref := make([]string, len(URLs))
