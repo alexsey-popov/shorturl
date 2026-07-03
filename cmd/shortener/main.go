@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/compact"
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/handler"
@@ -69,6 +70,9 @@ func main() {
 
 	// Разворачиваем и сокращаём данные
 	r.Use(compact.HTTPMiddleware)
+
+	// Аутентифицируем пользователя
+	r.Use(auth.NewHTTPMiddleware(config.Server.SecretKey, config.Server.TokenExp, sugar))
 
 	r.Post("/", handler.HandlePost)
 	r.Post("/api/shorten/batch", handler.HandlePostBatch)
