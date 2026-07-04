@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -257,6 +258,7 @@ func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http
 func HandleGetUserURLs(rw http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
+		fmt.Println(ErrInvalidContentType.Error())
 		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
@@ -264,12 +266,14 @@ func HandleGetUserURLs(rw http.ResponseWriter, r *http.Request) {
 	URLs, err := shortener.Rep.FindFromUserID(getUserID(r))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
+		fmt.Println(err.Error())
 		return
 	}
 
 	// Если записей не нашли - возвращаем StatusNoContent
 	if len(URLs) == 0 {
 		http.Error(rw, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+		fmt.Println("StatusNoContent")
 		return
 	}
 
@@ -284,6 +288,7 @@ func HandleGetUserURLs(rw http.ResponseWriter, r *http.Request) {
 		shortURL, err := shortener.GetURLFromPrefix(URL.Prefix)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusBadRequest)
+			fmt.Println(err.Error())
 			return
 		}
 
@@ -297,7 +302,7 @@ func HandleGetUserURLs(rw http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(responseItems)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
-
+		fmt.Println(err.Error())
 		return
 	}
 
