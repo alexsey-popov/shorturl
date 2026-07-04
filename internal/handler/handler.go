@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -206,6 +207,7 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	// Передаём слайс оригинальных ссылок на создание
 	mapURLs, err := shortener.AddMany(originalURLs, getUserID(r))
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
