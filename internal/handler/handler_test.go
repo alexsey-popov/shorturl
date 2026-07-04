@@ -79,7 +79,7 @@ func TestHandlePost(t *testing.T) {
 		},
 	}
 
-	UseMemoryRepository(config.Server.NetAddress)
+	UseMemoryRepository(config.Server.BaseURL)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,6 +108,8 @@ func TestHandlePost(t *testing.T) {
 
 // TestHandlePostJson Тесты для /api/shorten
 func TestHandlePostJson(t *testing.T) {
+	UseMemoryRepository(config.Server.BaseURL)
+
 	type want struct {
 		statusCode  int
 		contentType string
@@ -166,6 +168,7 @@ func TestHandlePostJson(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
 			r.Header.Set("Content-Type", tt.contentType)
+			//r.WithContext(context.WithValue(r.Context(), "user_id", "a762c0fe-e7d7-4b88-8f84-f7813fec7d53"))
 			w := httptest.NewRecorder()
 
 			HandlePostJSON(w, r)
@@ -188,9 +191,11 @@ func TestHandlePostJson(t *testing.T) {
 }
 
 func TestHandleGet(t *testing.T) {
+	UseMemoryRepository(config.Server.BaseURL)
+
 	// Добавляем в shortener заранее известную пару prefix => originalURL
-	prefix, originalURL := "positive1", "https://example.com/positive1"
-	if err := shortener.Rep.Set(model.New(prefix, originalURL)); err != nil {
+	prefix, originalURL, userID := "positive1", "https://example.com/positive1", ""
+	if err := shortener.Rep.Set(model.New(prefix, originalURL, userID)); err != nil {
 		t.Fatal(err)
 	}
 
