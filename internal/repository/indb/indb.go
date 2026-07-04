@@ -21,7 +21,7 @@ func (rep *InDB) Set(URL model.URL) error {
 		"INSERT INTO urls (prefix, original_url, user_id) VALUES ($1, $2, $3)",
 		URL.Prefix,
 		URL.OriginalURL,
-		URL.UserId,
+		URL.UserID,
 	)
 
 	if err != nil {
@@ -57,7 +57,7 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 	for i, url := range URLs {
 		pref[i] = url.Prefix
 		orig[i] = url.OriginalURL
-		users[i] = url.UserId
+		users[i] = url.UserID
 	}
 
 	_, err = stmt.Exec(pref, orig)
@@ -75,7 +75,7 @@ func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
 		prefix,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserId)
+	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID)
 
 	return
 }
@@ -87,16 +87,16 @@ func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error)
 		originalURL,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserId)
+	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID)
 
 	return
 }
 
-// FindFromUserId - поиск записей по id пользователя
-func (rep *InDB) FindFromUserId(userId string) (URLs []model.URL, err error) {
+// FindFromUserID - поиск записей по id пользователя
+func (rep *InDB) FindFromUserID(userID string) (URLs []model.URL, err error) {
 	rows, err := rep.DB.Query(
 		"SELECT id, prefix, original_url, user_id FROM urls where user_id = $1",
-		userId,
+		userID,
 	)
 	if err != nil {
 		return URLs, fmt.Errorf("ошибка при выполнении запроса на поиск записей по id пользователя: %w", err)
@@ -105,7 +105,7 @@ func (rep *InDB) FindFromUserId(userId string) (URLs []model.URL, err error) {
 	for rows.Next() {
 		URL := model.URL{}
 
-		err = rows.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserId)
+		err = rows.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID)
 		if rows.Err() != nil {
 			return URLs, fmt.Errorf("ошибка во время парсинга данных: %w", err)
 		}

@@ -42,13 +42,13 @@ func UseMemoryRepository(baseURL string) {
 	shortener = service.NewMemoryShortener(baseURL)
 }
 
-// getUserId - Получаем id пользователя из контекста запроса
-func getUserId(r *http.Request) (userId string) {
-	if ctxUserId, ok := r.Context().Value("user_id").(string); ok {
-		userId = ctxUserId
+// getUserID - Получаем id пользователя из контекста запроса
+func getUserID(r *http.Request) (userID string) {
+	if ctxUserID, ok := r.Context().Value("user_id").(string); ok {
+		userID = ctxUserID
 	}
 
-	return userId
+	return userID
 }
 
 // HandleGet - Обработчик Get запроса
@@ -80,7 +80,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := shortener.Add(string(originalURL), getUserId(r))
+	shortURL, err := shortener.Add(string(originalURL), getUserID(r))
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -128,7 +128,7 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := shortener.Add(request.URL, getUserId(r))
+	shortURL, err := shortener.Add(request.URL, getUserID(r))
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -204,7 +204,7 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Передаём слайс оригинальных ссылок на создание
-	mapURLs, err := shortener.AddMany(originalURLs, getUserId(r))
+	mapURLs, err := shortener.AddMany(originalURLs, getUserID(r))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -261,7 +261,7 @@ func HandleGetUserURLs(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	URLs, err := shortener.Rep.FindFromUserId(getUserId(r))
+	URLs, err := shortener.Rep.FindFromUserID(getUserID(r))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return

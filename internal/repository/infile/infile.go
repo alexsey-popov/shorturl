@@ -96,9 +96,9 @@ func (rep *InFile) FindFromOriginal(originalURL string) (item model.URL, err err
 	return rep.data.FindFromOriginal(originalURL)
 }
 
-// FindFromUserId - поиск записей по id пользователя
-func (rep *InFile) FindFromUserId(userId string) (URLs []model.URL, err error) {
-	return rep.data.FindFromUserId(userId)
+// FindFromUserID - поиск записей по id пользователя
+func (rep *InFile) FindFromUserID(userID string) (URLs []model.URL, err error) {
+	return rep.data.FindFromUserID(userID)
 }
 
 // New - Конструктор

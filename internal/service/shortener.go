@@ -19,8 +19,8 @@ type Repository interface {
 	SetMany(URLs []model.URL) error
 	// Get - Получение originalURL по значению prefix
 	Get(prefix string) (URL model.URL, err error)
-	// FindFromUserId - Получение списка ссылок закреплённых за пользователем
-	FindFromUserId(userId string) (URLs []model.URL, err error)
+	// FindFromUserID - Получение списка ссылок закреплённых за пользователем
+	FindFromUserID(userID string) (URLs []model.URL, err error)
 	// FindFromOriginal - Поиск значений по значению originalURL
 	FindFromOriginal(originalURL string) (URL model.URL, err error)
 	// Ping - Проверка соединения
@@ -71,13 +71,13 @@ func (s Shortener) CheckValidURL(originalURL string) (err error) {
 }
 
 // Add - Добавление новой ссылки
-func (s Shortener) Add(originalURL string, userId string) (string, error) {
+func (s Shortener) Add(originalURL string, userID string) (string, error) {
 	// Валидация ссылки
 	if err := s.CheckValidURL(originalURL); err != nil {
 		return "", err
 	}
 
-	URL := model.New(s.getNewPrefix(), originalURL, userId)
+	URL := model.New(s.getNewPrefix(), originalURL, userID)
 
 	err := s.Rep.Set(URL)
 	if err != nil {
@@ -88,7 +88,7 @@ func (s Shortener) Add(originalURL string, userId string) (string, error) {
 }
 
 // AddMany - множественное создание сокращённых ссылок
-func (s Shortener) AddMany(originalURLs []string, userId string) (mapURLs map[string]string, err error) {
+func (s Shortener) AddMany(originalURLs []string, userID string) (mapURLs map[string]string, err error) {
 	// Проверяем все ссылки на валидность и заполняем URLs
 	URLs := make([]model.URL, 0, len(originalURLs))
 	for _, originalURL := range originalURLs {
@@ -96,7 +96,7 @@ func (s Shortener) AddMany(originalURLs []string, userId string) (mapURLs map[st
 			return
 		}
 
-		URLs = append(URLs, model.New(s.getNewPrefix(), originalURL, userId))
+		URLs = append(URLs, model.New(s.getNewPrefix(), originalURL, userID))
 	}
 
 	// Пытаемся сохранить данные в базе

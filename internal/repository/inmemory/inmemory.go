@@ -77,14 +77,14 @@ func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 	return model.URL{}, ErrURLNotFound
 }
 
-// FindFromUserId - поиск записей по id пользователя
-func (rep *InMemory) FindFromUserId(userId string) (URLs []model.URL, err error) {
+// FindFromUserID - поиск записей по id пользователя
+func (rep *InMemory) FindFromUserID(userID string) (URLs []model.URL, err error) {
 	// Защищаем map от одновременного чтения из разных горутин
 	rep.mu.RLock()
 	defer rep.mu.RUnlock()
 
 	for _, item := range rep.data {
-		if item.UserId == userId {
+		if item.UserID == userID {
 
 			URLs = append(URLs, item)
 		}

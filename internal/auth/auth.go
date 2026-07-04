@@ -14,7 +14,7 @@ import (
 
 // UserToken - Токен аутентификации пользователя
 type UserToken struct {
-	UserId    string
+	UserID    string
 	Token     string
 	ExpiresAt time.Time
 }
@@ -22,24 +22,24 @@ type UserToken struct {
 // Claims — Кастомные утверждения для Jwt токена
 type Claims struct {
 	jwt.RegisteredClaims
-	UserId string
+	UserID string
 }
 
 var (
 	ErrInvalidToken  = errors.New("некорректный токен")
-	ErrEmptyUserId   = errors.New("пустой id пользователя")
+	ErrEmptyUserID   = errors.New("пустой id пользователя")
 	ErrInvalidMethod = errors.New("некорректный метод шифрования ключа")
 )
 
 // NewUserToken - Создание нового пользователя с токеном аутентификации
-func NewUserToken(userId string, secret string, tokenExp time.Duration) (UserToken, error) {
+func NewUserToken(userID string, secret string, tokenExp time.Duration) (UserToken, error) {
 	ut := UserToken{
-		UserId:    userId,
+		UserID:    userID,
 		ExpiresAt: time.Now().Add(tokenExp),
 	}
 
 	// Получаем токен аутентификации
-	token, err := BuildJWTString(secret, ut.ExpiresAt, userId)
+	token, err := BuildJWTString(secret, ut.ExpiresAt, userID)
 	if err != nil {
 		return ut, err
 	}
@@ -50,12 +50,12 @@ func NewUserToken(userId string, secret string, tokenExp time.Duration) (UserTok
 }
 
 // BuildJWTString создаёт токен и возвращает его в виде строки.
-func BuildJWTString(secret string, expiresAt time.Time, userId string) (string, error) {
+func BuildJWTString(secret string, expiresAt time.Time, userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 		},
-		UserId: userId,
+		UserID: userID,
 	})
 
 	return token.SignedString([]byte(secret))
@@ -70,7 +70,7 @@ func GetUserToken(authUserToken string, secret string) (UserToken, error) {
 	}
 
 	ut := UserToken{
-		UserId:    claims.UserId,
+		UserID:    claims.UserID,
 		Token:     authUserToken,
 		ExpiresAt: claims.ExpiresAt.Time,
 	}
@@ -80,9 +80,9 @@ func GetUserToken(authUserToken string, secret string) (UserToken, error) {
 		return ut, ErrInvalidToken
 	}
 
-	// Проверяем наличие значения в поле userId
-	if strings.Trim(ut.UserId, " ") == "" {
-		return ut, ErrEmptyUserId
+	// Проверяем наличие значения в поле userID
+	if strings.Trim(ut.UserID, " ") == "" {
+		return ut, ErrEmptyUserID
 	}
 
 	return ut, nil
@@ -108,7 +108,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 
 			var (
 				ut         UserToken
-				isNewToken bool = false
+				isNewToken bool
 			)
 
 			token, err := r.Cookie("Authorization")
@@ -124,7 +124,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 				ut, err = GetUserToken(token.Value, secret)
 				if err != nil {
 					// Если при попытке извлечения id пользователя мы получили ошибку "Пустой id" - сразу возвращаем ответ
-					if errors.Is(err, ErrEmptyUserId) {
+					if errors.Is(err, ErrEmptyUserID) {
 						http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 						return
 					}
@@ -150,7 +150,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 				})
 			}
 
-			ctx := context.WithValue(r.Context(), "user_id", ut.UserId)
+			ctx := context.WithValue(r.Context(), "user_id", ut.UserID)
 
 			h.ServeHTTP(w, r.WithContext(ctx))
 
