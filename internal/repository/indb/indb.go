@@ -18,9 +18,10 @@ type InDB struct {
 // Set - Сохраняем originalURL за значением prefix
 func (rep *InDB) Set(URL model.URL) error {
 	_, err := rep.DB.Exec(
-		"INSERT INTO urls (prefix, original_url) VALUES ($1, $2)",
+		"INSERT INTO urls (prefix, original_url, user_id) VALUES ($1, $2, $3)",
 		URL.Prefix,
 		URL.OriginalURL,
+		URL.UserId,
 	)
 
 	if err != nil {
@@ -43,7 +44,7 @@ func (rep *InDB) Set(URL model.URL) error {
 // SetMany - Сохраняем несколько ссылок
 func (rep *InDB) SetMany(URLs []model.URL) error {
 	// Создаём подготовленный запрос
-	stmt, err := rep.DB.Prepare("INSERT INTO urls (prefix, original_url) SELECT * FROM UNNEST($1::text[], $2::text[])")
+	stmt, err := rep.DB.Prepare("INSERT INTO urls (prefix, original_url, user_id) SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[])")
 	if err != nil {
 		return fmt.Errorf("ошибка при создании подготовленного запроса к БД: %w", err)
 	}
@@ -51,10 +52,12 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 
 	pref := make([]string, len(URLs))
 	orig := make([]string, len(URLs))
+	users := make([]string, len(URLs))
 
 	for i, url := range URLs {
 		pref[i] = url.Prefix
 		orig[i] = url.OriginalURL
+		users[i] = url.UserId
 	}
 
 	_, err = stmt.Exec(pref, orig)
@@ -68,11 +71,11 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 // Get - получение ссылки на редирект по префиксу
 func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
 	row := rep.DB.QueryRow(
-		"SELECT id, prefix, original_url FROM urls where prefix = $1",
+		"SELECT id, prefix, original_url, user_id FROM urls where prefix = $1",
 		prefix,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL)
+	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserId)
 
 	return
 }
@@ -80,11 +83,11 @@ func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
 // FindFromOriginal - Поиск среди загруженных в память данных
 func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error) {
 	row := rep.DB.QueryRow(
-		"SELECT id, prefix, original_url FROM urls where original_url = $1",
+		"SELECT id, prefix, original_url, user_id FROM urls where original_url = $1",
 		originalURL,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL)
+	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserId)
 
 	return
 }

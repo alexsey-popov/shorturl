@@ -69,13 +69,13 @@ func (s Shortener) CheckValidURL(originalURL string) (err error) {
 }
 
 // Add - Добавление новой ссылки
-func (s Shortener) Add(originalURL string) (string, error) {
+func (s Shortener) Add(originalURL string, userId string) (string, error) {
 	// Валидация ссылки
 	if err := s.CheckValidURL(originalURL); err != nil {
 		return "", err
 	}
 
-	URL := model.New(s.getNewPrefix(), originalURL)
+	URL := model.New(s.getNewPrefix(), originalURL, userId)
 
 	err := s.Rep.Set(URL)
 	if err != nil {
@@ -86,7 +86,7 @@ func (s Shortener) Add(originalURL string) (string, error) {
 }
 
 // AddMany - множественное создание сокращённых ссылок
-func (s Shortener) AddMany(originalURLs []string) (mapURLs map[string]string, err error) {
+func (s Shortener) AddMany(originalURLs []string, userId string) (mapURLs map[string]string, err error) {
 	// Проверяем все ссылки на валидность и заполняем URLs
 	URLs := make([]model.URL, 0, len(originalURLs))
 	for _, originalURL := range originalURLs {
@@ -94,7 +94,7 @@ func (s Shortener) AddMany(originalURLs []string) (mapURLs map[string]string, er
 			return
 		}
 
-		URLs = append(URLs, model.New(s.getNewPrefix(), originalURL))
+		URLs = append(URLs, model.New(s.getNewPrefix(), originalURL, userId))
 	}
 
 	// Пытаемся сохранить данные в базе

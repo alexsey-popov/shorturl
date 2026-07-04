@@ -42,6 +42,15 @@ func UseMemoryRepository(baseURL string) {
 	shortener = service.NewMemoryShortener(baseURL)
 }
 
+// getUserId - Получаем id пользователя из контекста запроса
+func getUserId(r *http.Request) (userId string) {
+	if ctxUserId, ok := r.Context().Value("user_id").(string); ok {
+		userId = ctxUserId
+	}
+
+	return userId
+}
+
 // HandleGet - Обработчик Get запроса
 func HandleGet(rw http.ResponseWriter, r *http.Request) {
 	prefix := chi.URLParam(r, "id")
@@ -71,7 +80,7 @@ func HandlePost(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := shortener.Add(string(originalURL))
+	shortURL, err := shortener.Add(string(originalURL), getUserId(r))
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -119,7 +128,7 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := shortener.Add(request.URL)
+	shortURL, err := shortener.Add(request.URL, getUserId(r))
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -195,7 +204,7 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Передаём слайс оригинальных ссылок на создание
-	mapURLs, err := shortener.AddMany(originalURLs)
+	mapURLs, err := shortener.AddMany(originalURLs, getUserId(r))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
