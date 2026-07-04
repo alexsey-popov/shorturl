@@ -77,6 +77,22 @@ func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 	return model.URL{}, ErrURLNotFound
 }
 
+// FindFromUserId - поиск записей по id пользователя
+func (rep *InMemory) FindFromUserId(userId string) (URLs []model.URL, err error) {
+	// Защищаем map от одновременного чтения из разных горутин
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
+
+	for _, item := range rep.data {
+		if item.UserId == userId {
+
+			URLs = append(URLs, item)
+		}
+	}
+
+	return URLs, nil
+}
+
 // String - приведение структуры к строке
 func (rep *InMemory) String() string {
 	// Защищаем map от одновременного чтения из разных горутин

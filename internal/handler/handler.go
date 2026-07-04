@@ -224,7 +224,6 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(responseItems)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
-
 		return
 	}
 
@@ -247,10 +246,62 @@ func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http
 			sugar.Error(err)
 
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+// HandleGetUserURLs - обработчик для запроса api/user/urls
+func HandleGetUserURLs(rw http.ResponseWriter, r *http.Request) {
+	// Некорректный content-type - ошибка
+	if r.Header.Get("Content-Type") != contentType.JSON {
+		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
+		return
+	}
+
+	URLs, err := shortener.Rep.FindFromUserId(getUserId(r))
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Если записей не нашли - возвращаем StatusNoContent
+	if len(URLs) == 0 {
+		http.Error(rw, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+		return
+	}
+
+	type responseItem struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+	responseItems := make([]responseItem, len(URLs))
+
+	for i, URL := range URLs {
+
+		shortURL, err := shortener.GetURLFromPrefix(URL.Prefix)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		responseItems[i] = responseItem{
+			ShortURL:    shortURL,
+			OriginalURL: URL.OriginalURL,
+		}
+	}
+
+	// Подготавливаем json ответ
+	response, err := json.Marshal(responseItems)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	rw.Header().Set("Content-Type", contentType.JSON)
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(response)
 }

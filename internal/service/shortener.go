@@ -19,6 +19,8 @@ type Repository interface {
 	SetMany(URLs []model.URL) error
 	// Get - Получение originalURL по значению prefix
 	Get(prefix string) (URL model.URL, err error)
+	// FindFromUserId - Получение списка ссылок закреплённых за пользователем
+	FindFromUserId(userId string) (URLs []model.URL, err error)
 	// FindFromOriginal - Поиск значений по значению originalURL
 	FindFromOriginal(originalURL string) (URL model.URL, err error)
 	// Ping - Проверка соединения

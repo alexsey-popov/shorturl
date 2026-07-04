@@ -92,6 +92,34 @@ func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error)
 	return
 }
 
+// FindFromUserId - поиск записей по id пользователя
+func (rep *InDB) FindFromUserId(userId string) (URLs []model.URL, err error) {
+	rows, err := rep.DB.Query(
+		"SELECT id, prefix, original_url, user_id FROM urls where user_id = $1",
+		userId,
+	)
+	if err != nil {
+		return URLs, fmt.Errorf("ошибка при выполнении запроса на поиск записей по id пользователя: %w", err)
+	}
+
+	for rows.Next() {
+		URL := model.URL{}
+
+		err = rows.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserId)
+		if rows.Err() != nil {
+			return URLs, fmt.Errorf("ошибка во время парсинга данных: %w", err)
+		}
+
+		URLs = append(URLs, URL)
+	}
+
+	if rows.Err() != nil {
+		return URLs, fmt.Errorf("ошибка после парсинга данных: %w", err)
+	}
+
+	return URLs, nil
+}
+
 // Ping - проверка соединения (считаем, что оно всегда есть)
 func (rep *InDB) Ping() error {
 	return rep.DB.Ping()
