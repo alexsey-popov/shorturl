@@ -256,13 +256,6 @@ func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http
 // HandleGetUserURLs - обработчик для запроса api/user/urls
 func HandleGetUserURLs(sugar *zap.SugaredLogger) func(rw http.ResponseWriter, r *http.Request) {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		// Некорректный content-type - ошибка
-		if r.Header.Get("Content-Type") != contentType.JSON {
-			sugar.Error(ErrInvalidContentType)
-			http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
-			return
-		}
-
 		URLs, err := shortener.Rep.FindFromUserID(getUserID(r))
 		if err != nil {
 			sugar.Error(err)
