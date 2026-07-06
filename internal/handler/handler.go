@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -255,58 +254,60 @@ func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http
 }
 
 // HandleGetUserURLs - обработчик для запроса api/user/urls
-func HandleGetUserURLs(rw http.ResponseWriter, r *http.Request) {
-	// Некорректный content-type - ошибка
-	if r.Header.Get("Content-Type") != contentType.JSON {
-		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
-		fmt.Println(ErrInvalidContentType.Error())
-		return
-	}
+func HandleGetUserURLs(sugar *zap.SugaredLogger) func(rw http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		// Некорректный content-type - ошибка
+		if r.Header.Get("Content-Type") != contentType.JSON {
+			sugar.Error(ErrInvalidContentType)
+			http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
+			return
+		}
 
-	URLs, err := shortener.Rep.FindFromUserID(getUserID(r))
-	if err != nil {
-		fmt.Println(err.Error())
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Если записей не нашли - возвращаем StatusNoContent
-	if len(URLs) == 0 {
-		fmt.Println("StatusNoContent")
-		http.Error(rw, http.StatusText(http.StatusNoContent), http.StatusNoContent)
-		return
-	}
-
-	type responseItem struct {
-		ShortURL    string `json:"short_url"`
-		OriginalURL string `json:"original_url"`
-	}
-	responseItems := make([]responseItem, len(URLs))
-
-	for i, URL := range URLs {
-
-		shortURL, err := shortener.GetURLFromPrefix(URL.Prefix)
+		URLs, err := shortener.Rep.FindFromUserID(getUserID(r))
 		if err != nil {
-			fmt.Println(err.Error())
+			sugar.Error(err)
 			http.Error(rw, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		responseItems[i] = responseItem{
-			ShortURL:    shortURL,
-			OriginalURL: URL.OriginalURL,
+		// Если записей не нашли - возвращаем StatusNoContent
+		if len(URLs) == 0 {
+			sugar.Error("no content")
+			http.Error(rw, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+			return
 		}
-	}
 
-	// Подготавливаем json ответ
-	response, err := json.Marshal(responseItems)
-	if err != nil {
-		fmt.Println(err.Error())
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
+		type responseItem struct {
+			ShortURL    string `json:"short_url"`
+			OriginalURL string `json:"original_url"`
+		}
+		responseItems := make([]responseItem, len(URLs))
 
-	rw.Header().Set("Content-Type", contentType.JSON)
-	rw.WriteHeader(http.StatusOK)
-	rw.Write(response)
+		for i, URL := range URLs {
+
+			shortURL, err := shortener.GetURLFromPrefix(URL.Prefix)
+			if err != nil {
+				sugar.Error(err)
+				http.Error(rw, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			responseItems[i] = responseItem{
+				ShortURL:    shortURL,
+				OriginalURL: URL.OriginalURL,
+			}
+		}
+
+		// Подготавливаем json ответ
+		response, err := json.Marshal(responseItems)
+		if err != nil {
+			sugar.Error(err)
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		rw.Header().Set("Content-Type", contentType.JSON)
+		rw.WriteHeader(http.StatusOK)
+		rw.Write(response)
+	})
 }
