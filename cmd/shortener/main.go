@@ -69,19 +69,19 @@ func main() {
 	r.Use(logger.NewHTTPMiddleware(sugar))
 
 	// Разворачиваем и сокращаём данные
-	r.Use(compact.HTTPMiddleware)
+	r.Use(compact.HTTPMiddleware(sugar))
 
 	// Аутентифицируем пользователя
 	r.Use(auth.NewHTTPMiddleware(config.Server.SecretKey, config.Server.TokenExp, sugar))
 
-	r.Post("/", handler.HandlePost)
-	r.Post("/api/shorten/batch", handler.HandlePostBatch)
-	r.Post("/api/shorten", handler.HandlePostJSON)
+	r.Post("/", handler.HandlePost(sugar))
+	r.Post("/api/shorten/batch", handler.HandlePostBatch(sugar))
+	r.Post("/api/shorten", handler.HandlePostJSON(sugar))
 	r.Get("/api/user/urls", handler.HandleGetUserURLs(sugar))
 	r.Delete("/api/user/urls", handler.HandleDeleteUserURLs(sugar))
 	r.Get("/ping", handler.HandleGetPing(sugar))
-	r.Get("/{id}", handler.HandleGet)
-	r.MethodNotAllowed(handler.HandleFails)
+	r.Get("/{id}", handler.HandleGet(sugar))
+	r.MethodNotAllowed(handler.HandleFails(sugar))
 
 	// Поднимает сервер
 	err = http.ListenAndServe(config.Server.NetAddress, r)

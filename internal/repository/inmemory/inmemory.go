@@ -90,9 +90,8 @@ func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) erro
 		}(inCh)
 	}
 
-	for n := range fanIn(chs) {
-		fmt.Println(n)
-	}
+	// Читаем данные из канала ничего не делая
+	<-fanIn(chs)
 
 	return nil
 }
