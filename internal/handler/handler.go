@@ -61,6 +61,12 @@ func HandleGet(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Если ссылка помечена как удалённая - вместо редиректа выдаём 410 статус
+	if URL.IsDeleted {
+		rw.WriteHeader(http.StatusGone)
+		return
+	}
+
 	http.Redirect(rw, r, URL.OriginalURL, http.StatusTemporaryRedirect)
 }
 
@@ -253,7 +259,7 @@ func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http
 	}
 }
 
-// HandleGetUserURLs - обработчик для запроса api/user/urls
+// HandleGetUserURLs - обработчик для Get запроса api/user/urls (массовое создание ссылок)
 func HandleGetUserURLs(sugar *zap.SugaredLogger) func(rw http.ResponseWriter, r *http.Request) {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		URLs, err := shortener.Rep.FindFromUserID(getUserID(r))
@@ -302,5 +308,31 @@ func HandleGetUserURLs(sugar *zap.SugaredLogger) func(rw http.ResponseWriter, r 
 		rw.Header().Set("Content-Type", contentType.JSON)
 		rw.WriteHeader(http.StatusOK)
 		rw.Write(response)
+	})
+}
+
+// HandleDeleteUserURLs - обработчик для Delete запроса api/user/urls (массовое удаление ссылок)
+func HandleDeleteUserURLs(sugar *zap.SugaredLogger) func(rw http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+
+		//
+		prefixes := make([]string, 0)
+		if err := json.NewDecoder(r.Body).Decode(&prefixes); err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if len(prefixes) == 0 {
+			http.Error(rw, ErrEmptyBatch.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err := shortener.Rep.DeleteManyFromUserId(prefixes, getUserID(r))
+		if err != nil {
+			sugar.Error(err)
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		rw.WriteHeader(http.StatusAccepted)
 	})
 }

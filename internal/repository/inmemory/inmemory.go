@@ -3,6 +3,7 @@ package inmemory
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"sync"
@@ -44,6 +45,75 @@ func (rep *InMemory) SetMany(URLs []model.URL) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
+func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) error {
+	//Получаем канал с префиксами через генератор
+	inCh := func(prefixes []string) chan string {
+		outCh := make(chan string)
+		go func() {
+			defer close(outCh)
+			for _, prefix := range prefixes {
+				outCh <- prefix
+			}
+		}()
+
+		return outCh
+	}(prefixes)
+
+	// Обрабатывать будем в 4 потока
+	chs := make([]chan string, 4)
+
+	// Запускаем каждый поток
+	for i, _ := range chs {
+		chs[i] = func(in chan string) chan string {
+			outCh := make(chan string)
+			go func() {
+				defer close(outCh)
+				for prefix := range inCh {
+
+					if err := rep.DeleteUserUrlFromPrefix(prefix, userID); err != nil {
+						outCh <- fmt.Sprintf("%s: %s", prefix, err)
+						continue
+					}
+
+					// 3 - успешное редактирование или удаление уже удалённого или не тот пользователь
+					outCh <- fmt.Sprintf("%s: %s", prefix, "ссылка успешно удалена")
+				}
+			}()
+
+			return outCh
+		}(inCh)
+	}
+
+	for n := range fanIn(chs) {
+		fmt.Println(n)
+	}
+
+	return nil
+}
+
+// DeleteUserUrlFromPrefix - удаление пользовательской ссылки по префиксу (с проверкой на принадлежность пользователю)
+func (rep *InMemory) DeleteUserUrlFromPrefix(prefix, userID string) error {
+	// Ищем ссылку
+	URL, err := rep.Get(prefix)
+	if err != nil {
+		return err
+	}
+
+	// Проверяем, что ссылка не была удалена ранее + принадлежность пользователю
+	if URL.IsDeleted || URL.UserID != userID {
+		return errors.New("ссылка уже удалена или не принадлежит пользователю")
+	}
+
+	// Помечаем ссылку как удалённую
+	URL.IsDeleted = true
+	if err = rep.Set(URL); err != nil {
+		return err
 	}
 
 	return nil
@@ -125,4 +195,35 @@ func (rep *InMemory) MarshalJSON() ([]byte, error) {
 // Ping - проверка соединения (считаем, что оно всегда есть)
 func (rep *InMemory) Ping() error {
 	return nil
+}
+
+// fanIn принимает несколько каналов, в которых итоговые значения
+func fanIn(chs []chan string) chan string {
+	var wg sync.WaitGroup
+	outCh := make(chan string)
+
+	// определяем функцию output для каждого канала в chs
+	// функция output копирует значения из канала с в канал outCh, пока с не будет закрыт
+	output := func(c chan string) {
+		for n := range c {
+			outCh <- n
+		}
+		wg.Done()
+	}
+
+	// добавляем в группу столько горутин, сколько каналов пришло в fanIn
+	wg.Add(len(chs))
+	// перебираем все каналы, которые пришли и отправляем каждый в отдельную горутину
+	for _, c := range chs {
+		go output(c)
+	}
+
+	// запускаем горутину для закрытия outCh после того, как все горутины отработают
+	go func() {
+		wg.Wait()
+		close(outCh)
+	}()
+
+	// возвращаем общий канал
+	return outCh
 }

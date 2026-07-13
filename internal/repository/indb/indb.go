@@ -68,14 +68,24 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 	return nil
 }
 
+// DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
+func (rep *InDB) DeleteManyFromUserId(prefixes []string, userID string) error {
+	_, err := rep.DB.Exec("UPDATE urls SET is_deleted = true WHERE user_id = $1 AND prefix IN (SELECT UNNEST($2::text[]))", userID, prefixes)
+	if err != nil {
+		err = fmt.Errorf("ошибка при массовом обновлении is_deleted в БД: %w", err)
+	}
+
+	return err
+}
+
 // Get - получение ссылки на редирект по префиксу
 func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
 	row := rep.DB.QueryRow(
-		"SELECT id, prefix, original_url, user_id FROM urls where prefix = $1",
+		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where prefix = $1",
 		prefix,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID)
+	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID, &URL.IsDeleted)
 
 	return
 }
@@ -83,11 +93,11 @@ func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
 // FindFromOriginal - Поиск среди загруженных в память данных
 func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error) {
 	row := rep.DB.QueryRow(
-		"SELECT id, prefix, original_url, user_id FROM urls where original_url = $1",
+		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where original_url = $1",
 		originalURL,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID)
+	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID, &URL.IsDeleted)
 
 	return
 }
@@ -95,7 +105,7 @@ func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error)
 // FindFromUserID - поиск записей по id пользователя
 func (rep *InDB) FindFromUserID(userID string) (URLs []model.URL, err error) {
 	rows, err := rep.DB.Query(
-		"SELECT id, prefix, original_url, user_id FROM urls where user_id = $1",
+		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where user_id = $1",
 		userID,
 	)
 	if err != nil {
@@ -105,7 +115,7 @@ func (rep *InDB) FindFromUserID(userID string) (URLs []model.URL, err error) {
 	for rows.Next() {
 		URL := model.URL{}
 
-		err = rows.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID)
+		err = rows.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID, &URL.IsDeleted)
 		if rows.Err() != nil {
 			return URLs, fmt.Errorf("ошибка во время парсинга данных: %w", err)
 		}

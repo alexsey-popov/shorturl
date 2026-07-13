@@ -78,6 +78,7 @@ func main() {
 	r.Post("/api/shorten/batch", handler.HandlePostBatch)
 	r.Post("/api/shorten", handler.HandlePostJSON)
 	r.Get("/api/user/urls", handler.HandleGetUserURLs(sugar))
+	r.Delete("/api/user/urls", handler.HandleDeleteUserURLs(sugar))
 	r.Get("/ping", handler.HandleGetPing(sugar))
 	r.Get("/{id}", handler.HandleGet)
 	r.MethodNotAllowed(handler.HandleFails)

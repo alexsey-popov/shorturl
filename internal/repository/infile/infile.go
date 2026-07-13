@@ -27,6 +27,21 @@ func (rep *InFile) MarshalJSON() ([]byte, error) {
 	return json.Marshal(rep.data)
 }
 
+// UpdateFile - Обновление файла
+func (rep *InFile) UpdateFile() error {
+	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("ошибка при сериализации данных: %w", err)
+	}
+
+	err = os.WriteFile(rep.filename, jsonData, 0666)
+	if err != nil {
+		return fmt.Errorf("ошибка при записи в файл: %w", err)
+	}
+
+	return nil
+}
+
 // Set - Сохраняем originalURL за значением prefix
 func (rep *InFile) Set(URL model.URL) error {
 	// Сначала пытаемся найти оригинальную ссылку в файле
@@ -46,14 +61,9 @@ func (rep *InFile) Set(URL model.URL) error {
 		return err
 	}
 
-	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("ошибка при сериализации данных: %w", err)
-	}
-
-	err = os.WriteFile(rep.filename, jsonData, 0666)
-	if err != nil {
-		return fmt.Errorf("ошибка при записи в файл: %w", err)
+	// Обновляем файл
+	if err = rep.UpdateFile(); err != nil {
+		return err
 	}
 
 	return nil
@@ -66,21 +76,16 @@ func (rep *InFile) SetMany(URLs []model.URL) error {
 	defer rep.mu.Unlock()
 
 	for _, url := range URLs {
-		// Записываем данные в память
+		// Записываем данные в память без сохранения файла на каждой итерации
 		err := rep.data.Set(url)
 		if err != nil {
 			return err
 		}
 	}
 
-	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("ошибка при сериализации данных: %w", err)
-	}
-
-	err = os.WriteFile(rep.filename, jsonData, 0666)
-	if err != nil {
-		return fmt.Errorf("ошибка при записи в файл: %w", err)
+	// Обновляем файл только один раз
+	if err := rep.UpdateFile(); err != nil {
+		return err
 	}
 
 	return nil
@@ -99,6 +104,21 @@ func (rep *InFile) FindFromOriginal(originalURL string) (item model.URL, err err
 // FindFromUserID - поиск записей по id пользователя
 func (rep *InFile) FindFromUserID(userID string) (URLs []model.URL, err error) {
 	return rep.data.FindFromUserID(userID)
+}
+
+// DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
+func (rep *InFile) DeleteManyFromUserId(prefixes []string, userID string) error {
+	// Удаляем в памяти
+	if err := rep.data.DeleteManyFromUserId(prefixes, userID); err != nil {
+		return err
+	}
+
+	//Сохраняем обновлённые результаты
+	if err := rep.UpdateFile(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // New - Конструктор
