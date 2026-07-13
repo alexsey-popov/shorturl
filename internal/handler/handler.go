@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,24 +22,16 @@ var (
 	ErrEmptyBatch         = errors.New("пустая пачка данных")
 )
 
-// shortener - Хранилище ссылок
-var shortener service.Shortener
-
-// UseDBRepository использование базы данных
-func UseDBRepository(baseURL string, db *sql.DB) {
-	shortener = service.NewDBShortener(baseURL, db)
+type Handler struct {
+	sugar     *zap.SugaredLogger
+	shortener service.Shortener
 }
 
-// UseFileRepository использование файлового хранилища
-func UseFileRepository(baseURL string, filepath string) (err error) {
-	shortener, err = service.NewFileShortener(baseURL, filepath)
-
-	return
-}
-
-// UseMemoryRepository использование хранилища в памяти
-func UseMemoryRepository(baseURL string) {
-	shortener = service.NewMemoryShortener(baseURL)
+func NewHandler(sugar *zap.SugaredLogger, shortener service.Shortener) Handler {
+	return Handler{
+		sugar:     sugar,
+		shortener: shortener,
+	}
 }
 
 // getUserID - Получаем id пользователя из контекста запроса
@@ -53,313 +44,295 @@ func getUserID(r *http.Request) (userID string) {
 }
 
 // HandleGet - Обработчик Get запроса
-func HandleGet(sugar *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		prefix := chi.URLParam(r, "id")
+func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
+	prefix := chi.URLParam(r, "id")
 
-		URL, err := shortener.Rep.Get(prefix)
-		if err != nil {
-			sugar.Error(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Если ссылка помечена как удалённая - вместо редиректа выдаём 410 статус
-		if URL.IsDeleted {
-			w.WriteHeader(http.StatusGone)
-			return
-		}
-
-		http.Redirect(w, r, URL.OriginalURL, http.StatusTemporaryRedirect)
+	URL, err := h.shortener.Rep.Get(prefix)
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+
+	// Если ссылка помечена как удалённая - вместо редиректа выдаём 410 статус
+	if URL.IsDeleted {
+		w.WriteHeader(http.StatusGone)
+		return
+	}
+
+	http.Redirect(w, r, URL.OriginalURL, http.StatusTemporaryRedirect)
 }
 
 // HandlePost - Обработчик Post запроса
-func HandlePost(sugar *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Некорректный content-type - ошибка
-		if r.Header.Get("Content-Type") != contentType.Plain {
-			sugar.Error(ErrInvalidContentType)
-			http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
-			return
+func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
+	// Некорректный content-type - ошибка
+	if r.Header.Get("Content-Type") != contentType.Plain {
+		h.sugar.Error(ErrInvalidContentType)
+		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Читаем тело запроса (ожидается ссылка)
+	originalURL, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.sugar.Errorf("ошибка при чтении тела запроса: %v", err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Получаем сокращённую ссылку
+	shortURL, err := h.shortener.Add(string(originalURL), getUserID(r))
+	if err != nil {
+		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
+		// и мы можем отдать пользователю уже существующую shortURL
+		var conflictErr *errors2.OriginalURLConflictError
+		if errors.As(err, &conflictErr) {
+			diffShortURL, err2 := h.shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
+			if err2 == nil {
+				w.Header().Set("Content-Type", contentType.Plain)
+				w.WriteHeader(http.StatusConflict)
+				w.Write([]byte(diffShortURL))
+
+				return
+			}
 		}
 
-		// Читаем тело запроса (ожидается ссылка)
-		originalURL, err := io.ReadAll(r.Body)
-		if err != nil {
-			sugar.Errorf("ошибка при чтении тела запроса: %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-		// Получаем сокращённую ссылку
-		shortURL, err := shortener.Add(string(originalURL), getUserID(r))
-		if err != nil {
-			// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
-			// и мы можем отдать пользователю уже существующую shortURL
-			var conflictErr *errors2.OriginalURLConflictError
-			if errors.As(err, &conflictErr) {
-				diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
-				if err2 == nil {
-					w.Header().Set("Content-Type", contentType.Plain)
+	w.Header().Set("Content-Type", contentType.Plain)
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(shortURL))
+}
+
+// HandlePostJSON - Обработчик для запроса Post /api/shorten
+func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
+	// Некорректный content-type - ошибка
+	if r.Header.Get("Content-Type") != contentType.JSON {
+		h.sugar.Error(ErrInvalidContentType)
+		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Читаем URL из json
+	request := struct {
+		URL string `json:"url"`
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		err = fmt.Errorf("ошибка парсинга json: %v", err)
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// response - Структура ответа
+	type response struct {
+		Result string `json:"result"`
+	}
+
+	// Получаем сокращённую ссылку
+	shortURL, err := h.shortener.Add(request.URL, getUserID(r))
+	if err != nil {
+		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
+		// и мы можем отдать пользователю уже существующую shortURL
+		if conflictErr, ok := errors.AsType[*errors2.OriginalURLConflictError](err); ok {
+			diffShortURL, err2 := h.shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
+			if err2 == nil {
+
+				// Подготавливаем json ответ
+				responseJSON, err3 := json.Marshal(
+					response{
+						Result: diffShortURL,
+					},
+				)
+				if err3 == nil {
+					w.Header().Set("Content-Type", contentType.JSON)
 					w.WriteHeader(http.StatusConflict)
-					w.Write([]byte(diffShortURL))
+					w.Write(responseJSON)
 
 					return
 				}
 			}
-
-			sugar.Error(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
 		}
 
-		w.Header().Set("Content-Type", contentType.Plain)
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(shortURL))
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-}
 
-// HandlePostJSON - Обработчик для запроса Post /api/shorten
-func HandlePostJSON(sugar *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Некорректный content-type - ошибка
-		if r.Header.Get("Content-Type") != contentType.JSON {
-			sugar.Error(ErrInvalidContentType)
-			http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Читаем URL из json
-		request := struct {
-			URL string `json:"url"`
-		}{}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			err = fmt.Errorf("ошибка парсинга json: %v", err)
-			sugar.Error(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// response - Структура ответа
-		type response struct {
-			Result string `json:"result"`
-		}
-
-		// Получаем сокращённую ссылку
-		shortURL, err := shortener.Add(request.URL, getUserID(r))
-		if err != nil {
-			// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
-			// и мы можем отдать пользователю уже существующую shortURL
-			if conflictErr, ok := errors.AsType[*errors2.OriginalURLConflictError](err); ok {
-				diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
-				if err2 == nil {
-
-					// Подготавливаем json ответ
-					responseJSON, err3 := json.Marshal(
-						response{
-							Result: diffShortURL,
-						},
-					)
-					if err3 == nil {
-						w.Header().Set("Content-Type", contentType.JSON)
-						w.WriteHeader(http.StatusConflict)
-						w.Write(responseJSON)
-
-						return
-					}
-				}
-			}
-
-			sugar.Error(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Подготавливаем json ответ
-		responseJSON, err := json.Marshal(
-			response{
-				Result: shortURL,
-			},
-		)
-		if err != nil {
-			err = fmt.Errorf("ошибка при сериализации в json: %v", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		w.Header().Set("Content-Type", contentType.JSON)
-		w.WriteHeader(http.StatusCreated)
-		w.Write(responseJSON)
+	// Подготавливаем json ответ
+	responseJSON, err := json.Marshal(
+		response{
+			Result: shortURL,
+		},
+	)
+	if err != nil {
+		err = fmt.Errorf("ошибка при сериализации в json: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+
+	w.Header().Set("Content-Type", contentType.JSON)
+	w.WriteHeader(http.StatusCreated)
+	w.Write(responseJSON)
 }
 
 // HandlePostBatch - Обработчик для запроса Post /api/shorten/batch (массовое создание)
-func HandlePostBatch(sugar *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Некорректный content-type - ошибка
-		if r.Header.Get("Content-Type") != contentType.JSON {
-			sugar.Error(ErrInvalidContentType)
-			http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
-			return
-		}
-
-		type requestItem struct {
-			Prefix      string `json:"correlation_id"`
-			OriginalURL string `json:"original_url"`
-		}
-
-		// Читаем URL из json
-		requestItems := make([]requestItem, 0)
-		if err := json.NewDecoder(r.Body).Decode(&requestItems); err != nil {
-			err = fmt.Errorf("ошибка при парсинге json: %v", err)
-			sugar.Error(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if len(requestItems) == 0 {
-			sugar.Error(ErrEmptyBatch)
-			http.Error(w, ErrEmptyBatch.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Создаём слайс оригинальных ссылок и заполняем его
-		originalURLs := make([]string, 0, len(requestItems))
-		for _, item := range requestItems {
-			originalURLs = append(originalURLs, item.OriginalURL)
-		}
-
-		// Передаём слайс оригинальных ссылок на создание
-		mapURLs, err := shortener.AddMany(originalURLs, getUserID(r))
-		if err != nil {
-			sugar.Error(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Подготавливаем ответ
-		type responseItem struct {
-			Prefix   string `json:"correlation_id"`
-			ShortURL string `json:"short_url"`
-		}
-		responseItems := make([]responseItem, 0, len(requestItems))
-
-		for _, item := range requestItems {
-			responseItems = append(responseItems, responseItem{Prefix: item.Prefix, ShortURL: mapURLs[item.OriginalURL]})
-		}
-
-		// Подготавливаем json ответ
-		response, err := json.Marshal(responseItems)
-		if err != nil {
-			err = fmt.Errorf("ошибка при сериализации в json: %v", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		w.Header().Set("Content-Type", contentType.JSON)
-		w.WriteHeader(http.StatusCreated)
-		w.Write(response)
+func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
+	// Некорректный content-type - ошибка
+	if r.Header.Get("Content-Type") != contentType.JSON {
+		h.sugar.Error(ErrInvalidContentType)
+		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
+		return
 	}
+
+	type requestItem struct {
+		Prefix      string `json:"correlation_id"`
+		OriginalURL string `json:"original_url"`
+	}
+
+	// Читаем URL из json
+	requestItems := make([]requestItem, 0)
+	if err := json.NewDecoder(r.Body).Decode(&requestItems); err != nil {
+		err = fmt.Errorf("ошибка при парсинге json: %v", err)
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(requestItems) == 0 {
+		h.sugar.Error(ErrEmptyBatch)
+		http.Error(w, ErrEmptyBatch.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Создаём слайс оригинальных ссылок и заполняем его
+	originalURLs := make([]string, 0, len(requestItems))
+	for _, item := range requestItems {
+		originalURLs = append(originalURLs, item.OriginalURL)
+	}
+
+	// Передаём слайс оригинальных ссылок на создание
+	mapURLs, err := h.shortener.AddMany(originalURLs, getUserID(r))
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Подготавливаем ответ
+	type responseItem struct {
+		Prefix   string `json:"correlation_id"`
+		ShortURL string `json:"short_url"`
+	}
+	responseItems := make([]responseItem, 0, len(requestItems))
+
+	for _, item := range requestItems {
+		responseItems = append(responseItems, responseItem{Prefix: item.Prefix, ShortURL: mapURLs[item.OriginalURL]})
+	}
+
+	// Подготавливаем json ответ
+	response, err := json.Marshal(responseItems)
+	if err != nil {
+		err = fmt.Errorf("ошибка при сериализации в json: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", contentType.JSON)
+	w.WriteHeader(http.StatusCreated)
+	w.Write(response)
 }
 
 // HandleFails - обработчик для ошибочных запросов
-func HandleFails(sugar *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", contentType.Plain)
-		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
-	}
+func (h Handler) HandleFails(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", contentType.Plain)
+	http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 }
 
 // HandleGetPing - Обработчик Get запроса /ping
-func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Проверяем соединение и в случае ошибки - пишем в чём дело
-		if err := shortener.Rep.Ping(); err != nil {
-			sugar.Error(err)
+func (h Handler) HandleGetPing(w http.ResponseWriter, r *http.Request) {
+	// Проверяем соединение и в случае ошибки - пишем в чём дело
+	if err := h.shortener.Rep.Ping(); err != nil {
+		h.sugar.Error(err)
 
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // HandleGetUserURLs - обработчик для Get запроса api/user/urls (массовое создание ссылок)
-func HandleGetUserURLs(sugar *zap.SugaredLogger) func(rw http.ResponseWriter, r *http.Request) {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		URLs, err := shortener.Rep.FindFromUserID(getUserID(r))
+func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
+	URLs, err := h.shortener.Rep.FindFromUserID(getUserID(r))
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Если записей не нашли - возвращаем StatusNoContent
+	if len(URLs) == 0 {
+		h.sugar.Error("no content")
+		http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+		return
+	}
+
+	type responseItem struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+	responseItems := make([]responseItem, len(URLs))
+
+	for i, URL := range URLs {
+
+		shortURL, err := h.shortener.GetURLFromPrefix(URL.Prefix)
 		if err != nil {
-			sugar.Error(err)
-			http.Error(rw, err.Error(), http.StatusBadRequest)
+			h.sugar.Error(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// Если записей не нашли - возвращаем StatusNoContent
-		if len(URLs) == 0 {
-			sugar.Error("no content")
-			http.Error(rw, http.StatusText(http.StatusNoContent), http.StatusNoContent)
-			return
+		responseItems[i] = responseItem{
+			ShortURL:    shortURL,
+			OriginalURL: URL.OriginalURL,
 		}
+	}
 
-		type responseItem struct {
-			ShortURL    string `json:"short_url"`
-			OriginalURL string `json:"original_url"`
-		}
-		responseItems := make([]responseItem, len(URLs))
+	// Подготавливаем json ответ
+	response, err := json.Marshal(responseItems)
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-		for i, URL := range URLs {
-
-			shortURL, err := shortener.GetURLFromPrefix(URL.Prefix)
-			if err != nil {
-				sugar.Error(err)
-				http.Error(rw, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			responseItems[i] = responseItem{
-				ShortURL:    shortURL,
-				OriginalURL: URL.OriginalURL,
-			}
-		}
-
-		// Подготавливаем json ответ
-		response, err := json.Marshal(responseItems)
-		if err != nil {
-			sugar.Error(err)
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		rw.Header().Set("Content-Type", contentType.JSON)
-		rw.WriteHeader(http.StatusOK)
-		rw.Write(response)
-	})
+	w.Header().Set("Content-Type", contentType.JSON)
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
 }
 
 // HandleDeleteUserURLs - обработчик для Delete запроса api/user/urls (массовое удаление ссылок)
-func HandleDeleteUserURLs(sugar *zap.SugaredLogger) func(rw http.ResponseWriter, r *http.Request) {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
+	prefixes := make([]string, 0)
+	if err := json.NewDecoder(r.Body).Decode(&prefixes); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(prefixes) == 0 {
+		http.Error(w, ErrEmptyBatch.Error(), http.StatusBadRequest)
+		return
+	}
 
-		//
-		prefixes := make([]string, 0)
-		if err := json.NewDecoder(r.Body).Decode(&prefixes); err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if len(prefixes) == 0 {
-			http.Error(rw, ErrEmptyBatch.Error(), http.StatusBadRequest)
-			return
-		}
+	err := h.shortener.Rep.DeleteManyFromUserId(prefixes, getUserID(r))
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-		err := shortener.Rep.DeleteManyFromUserId(prefixes, getUserID(r))
-		if err != nil {
-			sugar.Error(err)
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		rw.WriteHeader(http.StatusAccepted)
-	})
+	w.WriteHeader(http.StatusAccepted)
 }

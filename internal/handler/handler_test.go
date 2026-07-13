@@ -10,8 +10,10 @@ import (
 
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
+	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 func TestHandlePost(t *testing.T) {
@@ -79,7 +81,7 @@ func TestHandlePost(t *testing.T) {
 		},
 	}
 
-	UseMemoryRepository(config.Server.BaseURL)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,7 +89,7 @@ func TestHandlePost(t *testing.T) {
 			r.Header.Set("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 
-			HandlePost(w, r)
+			h.HandlePost(w, r)
 
 			res := w.Result()
 			defer res.Body.Close()
@@ -108,7 +110,7 @@ func TestHandlePost(t *testing.T) {
 
 // TestHandlePostJson Тесты для /api/shorten
 func TestHandlePostJson(t *testing.T) {
-	UseMemoryRepository(config.Server.BaseURL)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL))
 
 	type want struct {
 		statusCode  int
@@ -171,7 +173,7 @@ func TestHandlePostJson(t *testing.T) {
 			//r.WithContext(context.WithValue(r.Context(), "user_id", "a762c0fe-e7d7-4b88-8f84-f7813fec7d53"))
 			w := httptest.NewRecorder()
 
-			HandlePostJSON(w, r)
+			h.HandlePostJSON(w, r)
 
 			res := w.Result()
 			defer res.Body.Close()
@@ -191,11 +193,11 @@ func TestHandlePostJson(t *testing.T) {
 }
 
 func TestHandleGet(t *testing.T) {
-	UseMemoryRepository(config.Server.BaseURL)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL))
 
 	// Добавляем в shortener заранее известную пару prefix => originalURL
 	prefix, originalURL, userID := "positive1", "https://example.com/positive1", ""
-	if err := shortener.Rep.Set(model.New(prefix, originalURL, userID)); err != nil {
+	if err := h.shortener.Rep.Set(model.New(prefix, originalURL, userID)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -237,7 +239,7 @@ func TestHandleGet(t *testing.T) {
 
 			w := httptest.NewRecorder()
 
-			HandleGet(w, r)
+			h.HandleGet(w, r)
 
 			res := w.Result()
 			defer res.Body.Close()

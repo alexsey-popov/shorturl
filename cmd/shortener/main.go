@@ -12,6 +12,7 @@ import (
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/handler"
 	"github.com/alexsey-popov/shorturl/internal/logger"
+	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
@@ -35,6 +36,9 @@ func main() {
 		sugar.Fatal(err)
 	}
 
+	// Объект сокращателя ссылок
+	var shortener service.Shortener
+
 	// Пытаемся подключить различные виды хранилищ (по умолчанию используется хранение в памяти)
 	switch {
 	// Если указаны данные для подключения в БД - используем БД
@@ -46,12 +50,13 @@ func main() {
 		}
 		defer db.Close()
 
-		handler.UseDBRepository(config.Server.BaseURL, db)
+		shortener = service.NewDBShortener(config.Server.BaseURL, db)
 
 		sugar.Infoln("В качестве хранилища используется БД")
 	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
 	case config.Server.FilePath != "":
-		if err = handler.UseFileRepository(config.Server.BaseURL, config.Server.FilePath); err != nil {
+		shortener, err = service.NewFileShortener(config.Server.BaseURL, config.Server.FilePath)
+		if err != nil {
 			sugar.Fatal(err)
 		}
 
@@ -59,8 +64,11 @@ func main() {
 	default:
 		sugar.Infoln("В качестве хранилища используется ОЗУ")
 
-		handler.UseMemoryRepository(config.Server.BaseURL)
+		shortener = service.NewMemoryShortener(config.Server.BaseURL)
 	}
+
+	// Создаём объект обработчика запросов
+	h := handler.NewHandler(sugar, shortener)
 
 	// Объявляем роуты
 	r := chi.NewRouter()
@@ -74,14 +82,14 @@ func main() {
 	// Аутентифицируем пользователя
 	r.Use(auth.NewHTTPMiddleware(config.Server.SecretKey, config.Server.TokenExp, sugar))
 
-	r.Post("/", handler.HandlePost(sugar))
-	r.Post("/api/shorten/batch", handler.HandlePostBatch(sugar))
-	r.Post("/api/shorten", handler.HandlePostJSON(sugar))
-	r.Get("/api/user/urls", handler.HandleGetUserURLs(sugar))
-	r.Delete("/api/user/urls", handler.HandleDeleteUserURLs(sugar))
-	r.Get("/ping", handler.HandleGetPing(sugar))
-	r.Get("/{id}", handler.HandleGet(sugar))
-	r.MethodNotAllowed(handler.HandleFails(sugar))
+	r.Post("/", h.HandlePost)
+	r.Post("/api/shorten/batch", h.HandlePostBatch)
+	r.Post("/api/shorten", h.HandlePostJSON)
+	r.Get("/api/user/urls", h.HandleGetUserURLs)
+	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
+	r.Get("/ping", h.HandleGetPing)
+	r.Get("/{id}", h.HandleGet)
+	r.MethodNotAllowed(h.HandleFails)
 
 	// Поднимает сервер
 	err = http.ListenAndServe(config.Server.NetAddress, r)
