@@ -12,8 +12,6 @@ import (
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 var (
@@ -121,7 +119,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		URL string `json:"url"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		err = fmt.Errorf("ошибка парсинга json: %v", err)
+		err = fmt.Errorf("ошибка парсинга json: %w", err)
 		h.sugar.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -169,7 +167,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		err = fmt.Errorf("ошибка при сериализации в json: %v", err)
+		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -196,7 +194,7 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	// Читаем URL из json
 	requestItems := make([]requestItem, 0)
 	if err := json.NewDecoder(r.Body).Decode(&requestItems); err != nil {
-		err = fmt.Errorf("ошибка при парсинге json: %v", err)
+		err = fmt.Errorf("ошибка при парсинге json: %w", err)
 		h.sugar.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -236,7 +234,7 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	// Подготавливаем json ответ
 	response, err := json.Marshal(responseItems)
 	if err != nil {
-		err = fmt.Errorf("ошибка при сериализации в json: %v", err)
+		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -276,7 +274,6 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 
 	// Если записей не нашли - возвращаем StatusNoContent
 	if len(URLs) == 0 {
-		h.sugar.Error("no content")
 		http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
 		return
 	}

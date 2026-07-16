@@ -170,7 +170,7 @@ func TestHandlePostJson(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
 			r.Header.Set("Content-Type", tt.contentType)
-			//r.WithContext(context.WithValue(r.Context(), "user_id", "a762c0fe-e7d7-4b88-8f84-f7813fec7d53"))
+
 			w := httptest.NewRecorder()
 
 			h.HandlePostJSON(w, r)

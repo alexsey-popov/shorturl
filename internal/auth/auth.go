@@ -117,7 +117,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 			if err != nil {
 				ut, err = NewUserToken(uuid.NewString(), secret, tokenExp)
 				if err != nil {
-					sugar.Fatalf("ошибка при создании токена : %w", err)
+					sugar.Fatalf("ошибка при создании токена : %v", err)
 				}
 				isNewToken = true
 			} else {
@@ -132,7 +132,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 					//Иначе - создаём новый
 					ut, err = NewUserToken(uuid.NewString(), secret, tokenExp)
 					if err != nil {
-						sugar.Fatalf("ошибка при создании токена : %w", err)
+						sugar.Fatalf("ошибка при создании токена : %v", err)
 					}
 					isNewToken = true
 				}

@@ -12,12 +12,12 @@ import (
 )
 
 type InDB struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 // Set - Сохраняем originalURL за значением prefix
 func (rep *InDB) Set(URL model.URL) error {
-	_, err := rep.DB.Exec(
+	_, err := rep.db.Exec(
 		"INSERT INTO urls (prefix, original_url, user_id) VALUES ($1, $2, $3)",
 		URL.Prefix,
 		URL.OriginalURL,
@@ -44,7 +44,7 @@ func (rep *InDB) Set(URL model.URL) error {
 // SetMany - Сохраняем несколько ссылок
 func (rep *InDB) SetMany(URLs []model.URL) error {
 	// Создаём подготовленный запрос
-	stmt, err := rep.DB.Prepare("INSERT INTO urls (prefix, original_url, user_id) SELECT * FROM UNNEST($1::text[], $2::text[], $3::uuid[])")
+	stmt, err := rep.db.Prepare("INSERT INTO urls (prefix, original_url, user_id) SELECT * FROM UNNEST($1::text[], $2::text[], $3::uuid[])")
 	if err != nil {
 		return fmt.Errorf("ошибка при создании подготовленного запроса к БД: %w", err)
 	}
@@ -70,7 +70,7 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 
 // DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
 func (rep *InDB) DeleteManyFromUserId(prefixes []string, userID string) error {
-	_, err := rep.DB.Exec("UPDATE urls SET is_deleted = true WHERE user_id = $1 AND prefix IN (SELECT UNNEST($2::text[]))", userID, prefixes)
+	_, err := rep.db.Exec("UPDATE urls SET is_deleted = true WHERE user_id = $1 AND prefix IN (SELECT UNNEST($2::text[]))", userID, prefixes)
 	if err != nil {
 		err = fmt.Errorf("ошибка при массовом обновлении is_deleted в БД: %w", err)
 	}
@@ -80,7 +80,7 @@ func (rep *InDB) DeleteManyFromUserId(prefixes []string, userID string) error {
 
 // Get - получение ссылки на редирект по префиксу
 func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
-	row := rep.DB.QueryRow(
+	row := rep.db.QueryRow(
 		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where prefix = $1",
 		prefix,
 	)
@@ -92,7 +92,7 @@ func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
 
 // FindFromOriginal - Поиск среди загруженных в память данных
 func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error) {
-	row := rep.DB.QueryRow(
+	row := rep.db.QueryRow(
 		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where original_url = $1",
 		originalURL,
 	)
@@ -104,7 +104,7 @@ func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error)
 
 // FindFromUserID - поиск записей по id пользователя
 func (rep *InDB) FindFromUserID(userID string) (URLs []model.URL, err error) {
-	rows, err := rep.DB.Query(
+	rows, err := rep.db.Query(
 		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where user_id = $1",
 		userID,
 	)
@@ -116,7 +116,7 @@ func (rep *InDB) FindFromUserID(userID string) (URLs []model.URL, err error) {
 		URL := model.URL{}
 
 		err = rows.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID, &URL.IsDeleted)
-		if rows.Err() != nil {
+		if err != nil {
 			return URLs, fmt.Errorf("ошибка во время парсинга данных: %w", err)
 		}
 
@@ -132,11 +132,11 @@ func (rep *InDB) FindFromUserID(userID string) (URLs []model.URL, err error) {
 
 // Ping - проверка соединения (считаем, что оно всегда есть)
 func (rep *InDB) Ping() error {
-	return rep.DB.Ping()
+	return rep.db.Ping()
 }
 
 func New(db *sql.DB) *InDB {
 	return &InDB{
-		DB: db,
+		db: db,
 	}
 }

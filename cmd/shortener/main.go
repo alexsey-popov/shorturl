@@ -19,7 +19,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -94,7 +94,7 @@ func main() {
 	// Поднимает сервер
 	err = http.ListenAndServe(config.Server.NetAddress, r)
 	if err != nil {
-		sugar.Fatalf("ошибка в работе сервера: %w", err)
+		sugar.Fatalf("ошибка в работе сервера: %v", err)
 	}
 }
 

@@ -30,7 +30,7 @@ func HTTPMiddleware(sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 			if strings.Contains(contentEncoding, "gzip") {
 				gzipReader, err := gzip.NewReader(r.Body)
 				if err != nil {
-					err = fmt.Errorf("ошибка при создании парсера gzip: %v", err)
+					err = fmt.Errorf("ошибка при создании парсера gzip: %w", err)
 					sugar.Error(err)
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
