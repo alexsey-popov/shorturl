@@ -45,7 +45,7 @@ func getUserID(r *http.Request) (userID string) {
 func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	prefix := chi.URLParam(r, "id")
 
-	URL, err := h.shortener.Rep.Get(prefix)
+	url, err := h.shortener.Rep.Get(prefix)
 	if err != nil {
 		h.sugar.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -53,12 +53,12 @@ func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Если ссылка помечена как удалённая - вместо редиректа выдаём 410 статус
-	if URL.IsDeleted {
+	if url.IsDeleted {
 		w.WriteHeader(http.StatusGone)
 		return
 	}
 
-	http.Redirect(w, r, URL.OriginalURL, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, url.OriginalURL, http.StatusTemporaryRedirect)
 }
 
 // HandlePost - Обработчик Post запроса
@@ -265,7 +265,7 @@ func (h Handler) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetUserURLs - обработчик для Get запроса api/user/urls (массовое создание ссылок)
 func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
-	URLs, err := h.shortener.Rep.FindFromUserID(getUserID(r))
+	urls, err := h.shortener.Rep.FindFromUserID(getUserID(r))
 	if err != nil {
 		h.sugar.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -273,7 +273,7 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Если записей не нашли - возвращаем StatusNoContent
-	if len(URLs) == 0 {
+	if len(urls) == 0 {
 		http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
 		return
 	}
@@ -282,11 +282,11 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		ShortURL    string `json:"short_url"`
 		OriginalURL string `json:"original_url"`
 	}
-	responseItems := make([]responseItem, len(URLs))
+	responseItems := make([]responseItem, len(urls))
 
-	for i, URL := range URLs {
+	for i, url := range urls {
 
-		shortURL, err := h.shortener.GetURLFromPrefix(URL.Prefix)
+		shortURL, err := h.shortener.GetURLFromPrefix(url.Prefix)
 		if err != nil {
 			h.sugar.Error(err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -295,7 +295,7 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 
 		responseItems[i] = responseItem{
 			ShortURL:    shortURL,
-			OriginalURL: URL.OriginalURL,
+			OriginalURL: url.OriginalURL,
 		}
 	}
 

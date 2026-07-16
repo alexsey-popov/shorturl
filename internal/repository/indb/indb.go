@@ -16,12 +16,12 @@ type InDB struct {
 }
 
 // Set - Сохраняем originalURL за значением prefix
-func (rep *InDB) Set(URL model.URL) error {
+func (rep *InDB) Set(url model.URL) error {
 	_, err := rep.db.Exec(
 		"INSERT INTO urls (prefix, original_url, user_id) VALUES ($1, $2, $3)",
-		URL.Prefix,
-		URL.OriginalURL,
-		URL.UserID,
+		url.Prefix,
+		url.OriginalURL,
+		url.UserID,
 	)
 
 	if err != nil {
@@ -29,7 +29,7 @@ func (rep *InDB) Set(URL model.URL) error {
 		// Если произошла ошибка уникальности по полю original_url - пытаемся найти подходящую запись по OriginalURL
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation && pgErr.ConstraintName == "idx_urls_original_url_unique" {
-			diffURL, err2 := rep.FindFromOriginal(URL.OriginalURL)
+			diffURL, err2 := rep.FindFromOriginal(url.OriginalURL)
 			if err2 == nil {
 				return errors2.NewErrOriginalURLConflict(diffURL, err)
 			}
@@ -42,7 +42,7 @@ func (rep *InDB) Set(URL model.URL) error {
 }
 
 // SetMany - Сохраняем несколько ссылок
-func (rep *InDB) SetMany(URLs []model.URL) error {
+func (rep *InDB) SetMany(urls []model.URL) error {
 	// Создаём подготовленный запрос
 	stmt, err := rep.db.Prepare("INSERT INTO urls (prefix, original_url, user_id) SELECT * FROM UNNEST($1::text[], $2::text[], $3::uuid[])")
 	if err != nil {
@@ -50,11 +50,11 @@ func (rep *InDB) SetMany(URLs []model.URL) error {
 	}
 	defer stmt.Close()
 
-	pref := make([]string, len(URLs))
-	orig := make([]string, len(URLs))
-	users := make([]string, len(URLs))
+	pref := make([]string, len(urls))
+	orig := make([]string, len(urls))
+	users := make([]string, len(urls))
 
-	for i, url := range URLs {
+	for i, url := range urls {
 		pref[i] = url.Prefix
 		orig[i] = url.OriginalURL
 		users[i] = url.UserID
@@ -79,55 +79,55 @@ func (rep *InDB) DeleteManyFromUserId(prefixes []string, userID string) error {
 }
 
 // Get - получение ссылки на редирект по префиксу
-func (rep *InDB) Get(prefix string) (URL model.URL, err error) {
+func (rep *InDB) Get(prefix string) (url model.URL, err error) {
 	row := rep.db.QueryRow(
 		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where prefix = $1",
 		prefix,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID, &URL.IsDeleted)
+	err = row.Scan(&url.UUID, &url.Prefix, &url.OriginalURL, &url.UserID, &url.IsDeleted)
 
 	return
 }
 
 // FindFromOriginal - Поиск среди загруженных в память данных
-func (rep *InDB) FindFromOriginal(originalURL string) (URL model.URL, err error) {
+func (rep *InDB) FindFromOriginal(originalURL string) (url model.URL, err error) {
 	row := rep.db.QueryRow(
 		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where original_url = $1",
 		originalURL,
 	)
 
-	err = row.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID, &URL.IsDeleted)
+	err = row.Scan(&url.UUID, &url.Prefix, &url.OriginalURL, &url.UserID, &url.IsDeleted)
 
 	return
 }
 
 // FindFromUserID - поиск записей по id пользователя
-func (rep *InDB) FindFromUserID(userID string) (URLs []model.URL, err error) {
+func (rep *InDB) FindFromUserID(userID string) (urls []model.URL, err error) {
 	rows, err := rep.db.Query(
 		"SELECT id, prefix, original_url, user_id, is_deleted FROM urls where user_id = $1",
 		userID,
 	)
 	if err != nil {
-		return URLs, fmt.Errorf("ошибка при выполнении запроса на поиск записей по id пользователя: %w", err)
+		return urls, fmt.Errorf("ошибка при выполнении запроса на поиск записей по id пользователя: %w", err)
 	}
 
 	for rows.Next() {
-		URL := model.URL{}
+		url := model.URL{}
 
-		err = rows.Scan(&URL.UUID, &URL.Prefix, &URL.OriginalURL, &URL.UserID, &URL.IsDeleted)
+		err = rows.Scan(&url.UUID, &url.Prefix, &url.OriginalURL, &url.UserID, &url.IsDeleted)
 		if err != nil {
-			return URLs, fmt.Errorf("ошибка во время парсинга данных: %w", err)
+			return urls, fmt.Errorf("ошибка во время парсинга данных: %w", err)
 		}
 
-		URLs = append(URLs, URL)
+		urls = append(urls, url)
 	}
 
 	if rows.Err() != nil {
-		return URLs, fmt.Errorf("ошибка после парсинга данных: %w", err)
+		return urls, fmt.Errorf("ошибка после парсинга данных: %w", err)
 	}
 
-	return URLs, nil
+	return urls, nil
 }
 
 // Ping - проверка соединения (считаем, что оно всегда есть)

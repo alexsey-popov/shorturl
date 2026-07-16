@@ -43,10 +43,10 @@ func (rep *InFile) UpdateFile() error {
 }
 
 // Set - Сохраняем originalURL за значением prefix
-func (rep *InFile) Set(URL model.URL) error {
+func (rep *InFile) Set(url model.URL) error {
 	// Сначала пытаемся найти оригинальную ссылку в файле
 	// Если нашли - возвращаем специфическую ошибку с данными по существующей ссылке
-	diffURL, err := rep.FindFromOriginal(URL.OriginalURL)
+	diffURL, err := rep.FindFromOriginal(url.OriginalURL)
 	if err == nil {
 		return errors2.NewErrOriginalURLConflict(diffURL, ErrOriginalURLConflict)
 	}
@@ -56,7 +56,7 @@ func (rep *InFile) Set(URL model.URL) error {
 	defer rep.mu.Unlock()
 
 	// Записываем данные в память
-	err = rep.data.Set(URL)
+	err = rep.data.Set(url)
 	if err != nil {
 		return err
 	}
@@ -70,12 +70,12 @@ func (rep *InFile) Set(URL model.URL) error {
 }
 
 // SetMany - Сохраняем несколько ссылок
-func (rep *InFile) SetMany(URLs []model.URL) error {
+func (rep *InFile) SetMany(urls []model.URL) error {
 	// Защищаем файл от конкурентного доступа
 	rep.mu.Lock()
 	defer rep.mu.Unlock()
 
-	for _, url := range URLs {
+	for _, url := range urls {
 		// Записываем данные в память без сохранения файла на каждой итерации
 		err := rep.data.Set(url)
 		if err != nil {
@@ -97,12 +97,12 @@ func (rep *InFile) Get(prefix string) (model.URL, error) {
 }
 
 // FindFromOriginal - Поиск среди загруженных в память данных
-func (rep *InFile) FindFromOriginal(originalURL string) (item model.URL, err error) {
+func (rep *InFile) FindFromOriginal(originalURL string) (model.URL, error) {
 	return rep.data.FindFromOriginal(originalURL)
 }
 
 // FindFromUserID - поиск записей по id пользователя
-func (rep *InFile) FindFromUserID(userID string) (URLs []model.URL, err error) {
+func (rep *InFile) FindFromUserID(userID string) ([]model.URL, error) {
 	return rep.data.FindFromUserID(userID)
 }
 

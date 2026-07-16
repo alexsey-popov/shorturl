@@ -27,20 +27,20 @@ func New() *InMemory {
 }
 
 // Set - Сохраняем originalURL за значением prefix
-func (rep *InMemory) Set(URL model.URL) error {
+func (rep *InMemory) Set(url model.URL) error {
 	// Защищаем map от одновременной записи из разных горутин
 	rep.mu.Lock()
 	defer rep.mu.Unlock()
 
-	rep.data[URL.Prefix] = URL
+	rep.data[url.Prefix] = url
 
 	return nil
 }
 
 // SetMany - Сохраняем несколько ссылок
-func (rep *InMemory) SetMany(URLs []model.URL) error {
+func (rep *InMemory) SetMany(urls []model.URL) error {
 	// Записываем данные в память
-	for _, url := range URLs {
+	for _, url := range urls {
 		err := rep.Set(url)
 		if err != nil {
 			return err
@@ -99,19 +99,19 @@ func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) erro
 // DeleteUserUrlFromPrefix - удаление пользовательской ссылки по префиксу (с проверкой на принадлежность пользователю)
 func (rep *InMemory) DeleteUserUrlFromPrefix(prefix, userID string) error {
 	// Ищем ссылку
-	URL, err := rep.Get(prefix)
+	url, err := rep.Get(prefix)
 	if err != nil {
 		return err
 	}
 
 	// Проверяем, что ссылка не была удалена ранее + принадлежность пользователю
-	if URL.IsDeleted || URL.UserID != userID {
+	if url.IsDeleted || url.UserID != userID {
 		return errors.New("ссылка уже удалена или не принадлежит пользователю")
 	}
 
 	// Помечаем ссылку как удалённую
-	URL.IsDeleted = true
-	if err = rep.Set(URL); err != nil {
+	url.IsDeleted = true
+	if err = rep.Set(url); err != nil {
 		return err
 	}
 
@@ -147,7 +147,7 @@ func (rep *InMemory) FindFromOriginal(originalURL string) (model.URL, error) {
 }
 
 // FindFromUserID - поиск записей по id пользователя
-func (rep *InMemory) FindFromUserID(userID string) (URLs []model.URL, err error) {
+func (rep *InMemory) FindFromUserID(userID string) (urls []model.URL, err error) {
 	// Защищаем map от одновременного чтения из разных горутин
 	rep.mu.RLock()
 	defer rep.mu.RUnlock()
@@ -155,11 +155,11 @@ func (rep *InMemory) FindFromUserID(userID string) (URLs []model.URL, err error)
 	for _, item := range rep.data {
 		if item.UserID == userID {
 
-			URLs = append(URLs, item)
+			urls = append(urls, item)
 		}
 	}
 
-	return URLs, nil
+	return urls, nil
 }
 
 // String - приведение структуры к строке

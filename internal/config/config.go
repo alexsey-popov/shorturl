@@ -90,14 +90,14 @@ func Parse() error {
 		Server.DSN = dsn
 	}
 	// Срок жизни токена аутентификации пользователя (Nanosecond)
-	if TokenExpStr, ok := os.LookupEnv(EnvTokenExp); ok {
+	if tokenExpStr, ok := os.LookupEnv(EnvTokenExp); ok {
 		// Форматируем строку в число
-		TokenExp, err := strconv.Atoi(TokenExpStr)
+		tokenExp, err := strconv.Atoi(tokenExpStr)
 		if err != nil {
 			return err
 		}
 
-		Server.TokenExp = time.Duration(TokenExp)
+		Server.TokenExp = time.Duration(tokenExp)
 	}
 	// Приватный ключ JWT
 	if secretKey, ok := os.LookupEnv(EnvSecretKey); ok {
