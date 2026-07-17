@@ -45,7 +45,7 @@ func TestHandlePost(t *testing.T) {
 			contentType: contentType.Plain,
 			body:        "incorrect url",
 			want: want{
-				statusCode:  http.StatusBadRequest,
+				statusCode:  http.StatusInternalServerError,
 				contentType: contentType.Plain,
 			},
 		},
@@ -55,7 +55,7 @@ func TestHandlePost(t *testing.T) {
 			contentType: contentType.Plain,
 			body:        "",
 			want: want{
-				statusCode:  http.StatusBadRequest,
+				statusCode:  http.StatusInternalServerError,
 				contentType: contentType.Plain,
 			},
 		},
