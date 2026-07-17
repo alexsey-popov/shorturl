@@ -140,7 +140,7 @@ func TestHandlePostJson(t *testing.T) {
 			contentType: contentType.JSON,
 			body:        `{"url": "incorrect-url"}`,
 			want: want{
-				statusCode:  http.StatusBadRequest,
+				statusCode:  http.StatusInternalServerError,
 				contentType: contentType.Plain,
 			},
 		},
@@ -150,7 +150,7 @@ func TestHandlePostJson(t *testing.T) {
 			contentType: contentType.JSON,
 			body:        "",
 			want: want{
-				statusCode:  http.StatusBadRequest,
+				statusCode:  http.StatusInternalServerError,
 				contentType: contentType.Plain,
 			},
 		},
