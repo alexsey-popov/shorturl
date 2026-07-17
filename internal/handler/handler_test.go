@@ -8,11 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -87,6 +89,11 @@ func TestHandlePost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
 			r.Header.Set("Content-Type", tt.contentType)
+
+			// Прокидываем id пользователя в контекст
+			ctx := auth.SetUserId(r.Context(), uuid.NewString())
+			r = r.WithContext(ctx)
+
 			w := httptest.NewRecorder()
 
 			h.HandlePost(w, r)
@@ -170,6 +177,10 @@ func TestHandlePostJson(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
 			r.Header.Set("Content-Type", tt.contentType)
+
+			// Прокидываем id пользователя в контекст
+			ctx := auth.SetUserId(r.Context(), uuid.NewString())
+			r = r.WithContext(ctx)
 
 			w := httptest.NewRecorder()
 

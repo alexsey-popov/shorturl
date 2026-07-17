@@ -106,8 +106,8 @@ func jwtKeyFunc(secret string) func(t *jwt.Token) (interface{}, error) {
 	}
 }
 
-// setUserId - Добавление id пользователя в контекст
-func setUserId(ctx context.Context, key string) context.Context {
+// SetUserId - Добавление id пользователя в контекст
+func SetUserId(ctx context.Context, key string) context.Context {
 	return context.WithValue(ctx, userIdKey, key)
 }
 
@@ -168,7 +168,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 			}
 
 			// Добавляем id пользователя в контекст
-			ctx := setUserId(r.Context(), ut.UserID)
+			ctx := SetUserId(r.Context(), ut.UserID)
 
 			h.ServeHTTP(w, r.WithContext(ctx))
 
