@@ -12,6 +12,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// ctxKey - Специальный тип для использования в контексте
+type ctxKey string
+
+// userIdKey - константа для извлечения id пользователя
+const userIdKey ctxKey = "user_id"
+
 // UserToken - Токен аутентификации пользователя
 type UserToken struct {
 	UserID    string
@@ -39,7 +45,7 @@ func NewUserToken(userID string, secret string, tokenExp time.Duration) (UserTok
 	}
 
 	// Получаем токен аутентификации
-	token, err := BuildJWTString(secret, ut.ExpiresAt, userID)
+	token, err := buildJWTString(secret, ut.ExpiresAt, userID)
 	if err != nil {
 		return ut, err
 	}
@@ -49,8 +55,8 @@ func NewUserToken(userID string, secret string, tokenExp time.Duration) (UserTok
 	return ut, nil
 }
 
-// BuildJWTString создаёт токен и возвращает его в виде строки.
-func BuildJWTString(secret string, expiresAt time.Time, userID string) (string, error) {
+// buildJWTString создаёт токен и возвращает его в виде строки.
+func buildJWTString(secret string, expiresAt time.Time, userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
@@ -61,8 +67,8 @@ func BuildJWTString(secret string, expiresAt time.Time, userID string) (string, 
 	return token.SignedString([]byte(secret))
 }
 
-// GetUserToken - Получаем UserToken по токену аутентификации пользователя и приватному ключу
-func GetUserToken(authUserToken string, secret string) (UserToken, error) {
+// getUserToken - Получаем UserToken по токену аутентификации пользователя и приватному ключу
+func getUserToken(authUserToken string, secret string) (UserToken, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(authUserToken, claims, jwtKeyFunc(secret))
 	if err != nil {
@@ -100,6 +106,17 @@ func jwtKeyFunc(secret string) func(t *jwt.Token) (interface{}, error) {
 	}
 }
 
+// setUserId - Добавление id пользователя в контекст
+func setUserId(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, userIdKey, key)
+}
+
+// GetUserId - Извлечение user_id из контекста
+func GetUserId(ctx context.Context) (string, bool) {
+	user, ok := ctx.Value(userIdKey).(string)
+	return user, ok
+}
+
 // NewHTTPMiddleware Принимаем приватный ключ, срок жизни токена и логгер, возвращаем функцию-замыкание, которая будет аутентифицировать пользователя
 func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 
@@ -121,7 +138,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 				}
 				isNewToken = true
 			} else {
-				ut, err = GetUserToken(token.Value, secret)
+				ut, err = getUserToken(token.Value, secret)
 				if err != nil {
 					// Если при попытке извлечения id пользователя мы получили ошибку "Пустой id" - сразу возвращаем ответ
 					if errors.Is(err, ErrEmptyUserID) {
@@ -150,7 +167,8 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 				})
 			}
 
-			ctx := context.WithValue(r.Context(), "user_id", ut.UserID)
+			// Добавляем id пользователя в контекст
+			ctx := setUserId(r.Context(), ut.UserID)
 
 			h.ServeHTTP(w, r.WithContext(ctx))
 

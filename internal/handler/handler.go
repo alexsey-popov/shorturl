@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
@@ -33,12 +34,8 @@ func NewHandler(sugar *zap.SugaredLogger, shortener service.Shortener) Handler {
 }
 
 // getUserID - Получаем id пользователя из контекста запроса
-func getUserID(r *http.Request) (userID string) {
-	if ctxUserID, ok := r.Context().Value("user_id").(string); ok {
-		userID = ctxUserID
-	}
-
-	return userID
+func (h Handler) getUserID(r *http.Request) (userID string, ok bool) {
+	return auth.GetUserId(r.Context())
 }
 
 // HandleGet - Обработчик Get запроса
@@ -78,8 +75,15 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
 	// Получаем сокращённую ссылку
-	shortURL, err := h.shortener.Add(string(originalURL), getUserID(r))
+	shortURL, err := h.shortener.Add(string(originalURL), userId)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -130,8 +134,15 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		Result string `json:"result"`
 	}
 
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
 	// Получаем сокращённую ссылку
-	shortURL, err := h.shortener.Add(request.URL, getUserID(r))
+	shortURL, err := h.shortener.Add(request.URL, userId)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -212,8 +223,15 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 		originalURLs = append(originalURLs, item.OriginalURL)
 	}
 
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
 	// Передаём слайс оригинальных ссылок на создание
-	mapURLs, err := h.shortener.AddMany(originalURLs, getUserID(r))
+	mapURLs, err := h.shortener.AddMany(originalURLs, userId)
 	if err != nil {
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -265,7 +283,14 @@ func (h Handler) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetUserURLs - обработчик для Get запроса api/user/urls (массовое создание ссылок)
 func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
-	urls, err := h.shortener.Rep.FindFromUserID(getUserID(r))
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	urls, err := h.shortener.Rep.FindFromUserID(userId)
 	if err != nil {
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -325,7 +350,14 @@ func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.shortener.Rep.DeleteManyFromUserId(prefixes, getUserID(r))
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	err := h.shortener.Rep.DeleteManyFromUserId(prefixes, userId)
 	if err != nil {
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
