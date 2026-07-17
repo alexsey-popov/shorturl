@@ -48,7 +48,7 @@ func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	url, err := h.shortener.Rep.Get(prefix)
 	if err != nil {
 		h.sugar.Error(err)
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
