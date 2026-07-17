@@ -223,7 +223,7 @@ func TestHandleGet(t *testing.T) {
 			name:   "negative #1 - invalid target",
 			target: "/invalid-target",
 			want: want{
-				statusCode: http.StatusBadRequest,
+				statusCode: http.StatusNotFound,
 				location:   "",
 			},
 		},
