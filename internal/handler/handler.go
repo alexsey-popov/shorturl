@@ -74,7 +74,6 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	originalURL, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.sugar.Errorf("ошибка при чтении тела запроса: %v", err.Error())
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -98,7 +97,6 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -124,7 +122,6 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		err = fmt.Errorf("ошибка парсинга json: %w", err)
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -159,7 +156,6 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.sugar.Error(err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -172,7 +168,6 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -201,14 +196,12 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&requestItems); err != nil {
 		err = fmt.Errorf("ошибка при парсинге json: %w", err)
 		h.sugar.Error(err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if len(requestItems) == 0 {
 		h.sugar.Error(ErrEmptyBatch)
-		//http.Error(w, ErrEmptyBatch.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -223,7 +216,6 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	mapURLs, err := h.shortener.AddMany(originalURLs, getUserID(r))
 	if err != nil {
 		h.sugar.Error(err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -243,7 +235,6 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(responseItems)
 	if err != nil {
 		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -277,7 +268,6 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	urls, err := h.shortener.Rep.FindFromUserID(getUserID(r))
 	if err != nil {
 		h.sugar.Error(err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -299,7 +289,6 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		shortURL, err := h.shortener.GetURLFromPrefix(url.Prefix)
 		if err != nil {
 			h.sugar.Error(err)
-			//http.Error(w, err.Error(), http.StatusBadRequest)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -314,7 +303,6 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(responseItems)
 	if err != nil {
 		h.sugar.Error(err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -329,7 +317,6 @@ func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	prefixes := make([]string, 0)
 	if err := json.NewDecoder(r.Body).Decode(&prefixes); err != nil {
 		h.sugar.Errorf("ошибка при декодировании json: %v", err.Error())
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -341,7 +328,6 @@ func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	err := h.shortener.Rep.DeleteManyFromUserId(prefixes, getUserID(r))
 	if err != nil {
 		h.sugar.Error(err)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
