@@ -83,7 +83,7 @@ func TestHandlePost(t *testing.T) {
 		},
 	}
 
-	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL))
+	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL), nil)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestHandlePost(t *testing.T) {
 
 // TestHandlePostJson Тесты для /api/shorten
 func TestHandlePostJson(t *testing.T) {
-	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL))
+	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL), nil)
 
 	type want struct {
 		statusCode  int
@@ -204,7 +204,7 @@ func TestHandlePostJson(t *testing.T) {
 }
 
 func TestHandleGet(t *testing.T) {
-	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL))
+	h := NewHandler(zap.S(), service.NewMemoryShortener(config.Server.BaseURL), nil)
 
 	// Добавляем в shortener заранее известную пару prefix => originalURL
 	prefix, originalURL, userID := "positive1", "https://example.com/positive1", ""

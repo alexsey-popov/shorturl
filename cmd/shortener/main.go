@@ -67,8 +67,13 @@ func main() {
 		shortener = service.NewMemoryShortener(config.Server.BaseURL)
 	}
 
+	// Создаём канал для асинхронного удаления ссылок
+	delCh := make(chan handler.DeleteTask, 100)
+	// Запускаем воркеры для удаления ссылок
+	startDeleteWorkers(10, delCh, shortener, sugar)
+
 	// Создаём объект обработчика запросов
-	h := handler.NewHandler(sugar, shortener)
+	h := handler.NewHandler(sugar, shortener, delCh)
 
 	// Объявляем роуты
 	r := chi.NewRouter()
@@ -128,4 +133,18 @@ func connectDB(serverDSN string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// startDeleteWorkers - Запуск воркер-пула для удаления ссылок
+func startDeleteWorkers(num int, delCh <-chan handler.DeleteTask, shortener service.Shortener, logger *zap.SugaredLogger) {
+	for i := 0; i < num; i++ {
+		go func() {
+			for task := range delCh {
+				err := shortener.Rep.DeleteManyFromUserId(task.Prefixes, task.UserID)
+				if err != nil {
+					logger.Errorf("ошибка при удалении ссылок: %v", err)
+				}
+			}
+		}()
+	}
 }

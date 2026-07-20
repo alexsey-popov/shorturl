@@ -21,15 +21,23 @@ var (
 	ErrEmptyBatch         = errors.New("пустая пачка данных")
 )
 
+// DeleteTask - Задача на удаление ссылок пользователя
+type DeleteTask struct {
+	UserID   string
+	Prefixes []string
+}
+
 type Handler struct {
 	sugar     *zap.SugaredLogger
 	shortener service.Shortener
+	delCh     chan DeleteTask
 }
 
-func NewHandler(sugar *zap.SugaredLogger, shortener service.Shortener) Handler {
+func NewHandler(sugar *zap.SugaredLogger, shortener service.Shortener, delCh chan DeleteTask) Handler {
 	return Handler{
 		sugar:     sugar,
 		shortener: shortener,
+		delCh:     delCh,
 	}
 }
 
@@ -357,12 +365,13 @@ func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.shortener.Rep.DeleteManyFromUserId(prefixes, userId)
-	if err != nil {
-		h.sugar.Error(err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	// Отправляем задачу в канал для асинхронного удаления (fan-in паттерн)
+	go func() {
+		h.delCh <- DeleteTask{
+			UserID:   userId,
+			Prefixes: prefixes,
+		}
+	}()
 
 	w.WriteHeader(http.StatusAccepted)
 }

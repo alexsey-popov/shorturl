@@ -66,23 +66,20 @@ func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) erro
 	}(prefixes)
 
 	// Обрабатывать будем в 4 потока
-	chs := make([]chan string, 4)
+	chs := make([]chan error, 4)
 
 	// Запускаем каждый поток
-	for i, _ := range chs {
-		chs[i] = func(in chan string) chan string {
-			outCh := make(chan string)
+	for i := range chs {
+		chs[i] = func(in chan string) chan error {
+			outCh := make(chan error)
 			go func() {
 				defer close(outCh)
 				for prefix := range inCh {
-
 					if err := rep.DeleteUserUrlFromPrefix(prefix, userID); err != nil {
-						outCh <- fmt.Sprintf("%s: %s", prefix, err)
+						outCh <- fmt.Errorf("%s: %w", prefix, err)
 						continue
 					}
-
-					// 3 - успешное редактирование или удаление уже удалённого или не тот пользователь
-					outCh <- fmt.Sprintf("%s: %s", prefix, "ссылка успешно удалена")
+					outCh <- nil
 				}
 			}()
 
@@ -90,10 +87,15 @@ func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) erro
 		}(inCh)
 	}
 
-	// Читаем данные из канала ничего не делая
-	<-fanIn(chs)
+	var resErr error
+	// Читаем все данные из канала
+	for err := range fanIn(chs) {
+		if err != nil && resErr == nil {
+			resErr = err
+		}
+	}
 
-	return nil
+	return resErr
 }
 
 // DeleteUserUrlFromPrefix - удаление пользовательской ссылки по префиксу (с проверкой на принадлежность пользователю)
@@ -197,13 +199,13 @@ func (rep *InMemory) Ping() error {
 }
 
 // fanIn принимает несколько каналов, в которых итоговые значения
-func fanIn(chs []chan string) chan string {
+func fanIn[T any](chs []chan T) chan T {
 	var wg sync.WaitGroup
-	outCh := make(chan string)
+	outCh := make(chan T)
 
 	// определяем функцию output для каждого канала в chs
 	// функция output копирует значения из канала с в канал outCh, пока с не будет закрыт
-	output := func(c chan string) {
+	output := func(c chan T) {
 		for n := range c {
 			outCh <- n
 		}
