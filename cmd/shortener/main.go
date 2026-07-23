@@ -7,17 +7,19 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/compact"
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/handler"
 	"github.com/alexsey-popov/shorturl/internal/logger"
+	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -34,8 +36,8 @@ func main() {
 		sugar.Fatal(err)
 	}
 
-	// Ссылка на сервис
-	baseURL := config.Server.Scheme + "://" + config.Server.Host
+	// Объект сокращателя ссылок
+	var shortener service.Shortener
 
 	// Пытаемся подключить различные виды хранилищ (по умолчанию используется хранение в памяти)
 	switch {
@@ -48,12 +50,13 @@ func main() {
 		}
 		defer db.Close()
 
-		handler.UseDBRepository(baseURL, db)
+		shortener = service.NewDBShortener(config.Server.BaseURL, db)
 
 		sugar.Infoln("В качестве хранилища используется БД")
 	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
 	case config.Server.FilePath != "":
-		if err = handler.UseFileRepository(baseURL, config.Server.FilePath); err != nil {
+		shortener, err = service.NewFileShortener(config.Server.BaseURL, config.Server.FilePath)
+		if err != nil {
 			sugar.Fatal(err)
 		}
 
@@ -61,8 +64,16 @@ func main() {
 	default:
 		sugar.Infoln("В качестве хранилища используется ОЗУ")
 
-		handler.UseMemoryRepository(baseURL)
+		shortener = service.NewMemoryShortener(config.Server.BaseURL)
 	}
+
+	// Создаём канал для асинхронного удаления ссылок
+	delCh := make(chan handler.DeleteTask, 100)
+	// Запускаем воркеры для удаления ссылок
+	startDeleteWorkers(10, delCh, shortener, sugar)
+
+	// Создаём объект обработчика запросов
+	h := handler.NewHandler(sugar, shortener, delCh)
 
 	// Объявляем роуты
 	r := chi.NewRouter()
@@ -71,19 +82,24 @@ func main() {
 	r.Use(logger.NewHTTPMiddleware(sugar))
 
 	// Разворачиваем и сокращаём данные
-	r.Use(compact.HTTPMiddleware)
+	r.Use(compact.HTTPMiddleware(sugar))
 
-	r.Post("/", handler.HandlePost)
-	r.Post("/api/shorten/batch", handler.HandlePostBatch)
-	r.Post("/api/shorten", handler.HandlePostJSON)
-	r.Get("/ping", handler.HandleGetPing(sugar))
-	r.Get("/{id}", handler.HandleGet)
-	r.MethodNotAllowed(handler.HandleFails)
+	// Аутентифицируем пользователя
+	r.Use(auth.NewHTTPMiddleware(config.Server.SecretKey, config.Server.TokenExp, sugar))
+
+	r.Post("/", h.HandlePost)
+	r.Post("/api/shorten/batch", h.HandlePostBatch)
+	r.Post("/api/shorten", h.HandlePostJSON)
+	r.Get("/api/user/urls", h.HandleGetUserURLs)
+	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
+	r.Get("/ping", h.HandleGetPing)
+	r.Get("/{id}", h.HandleGet)
+	r.MethodNotAllowed(h.HandleFails)
 
 	// Поднимает сервер
 	err = http.ListenAndServe(config.Server.NetAddress, r)
 	if err != nil {
-		sugar.Fatalf("ошибка в работе сервера: %w", err)
+		sugar.Fatalf("ошибка в работе сервера: %v", err)
 	}
 }
 
@@ -117,4 +133,18 @@ func connectDB(serverDSN string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// startDeleteWorkers - Запуск воркер-пула для удаления ссылок
+func startDeleteWorkers(num int, delCh <-chan handler.DeleteTask, shortener service.Shortener, logger *zap.SugaredLogger) {
+	for i := 0; i < num; i++ {
+		go func() {
+			for task := range delCh {
+				err := shortener.Rep.DeleteManyFromUserId(task.Prefixes, task.UserID)
+				if err != nil {
+					logger.Errorf("ошибка при удалении ссылок: %v", err)
+				}
+			}
+		}()
+	}
 }

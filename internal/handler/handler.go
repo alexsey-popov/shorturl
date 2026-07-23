@@ -1,19 +1,18 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 var (
@@ -22,85 +21,108 @@ var (
 	ErrEmptyBatch         = errors.New("пустая пачка данных")
 )
 
-// shortener - Хранилище ссылок
-var shortener service.Shortener
-
-// UseDBRepository использование базы данных
-func UseDBRepository(baseURL string, db *sql.DB) {
-	shortener = service.NewDBShortener(baseURL, db)
+// DeleteTask - Задача на удаление ссылок пользователя
+type DeleteTask struct {
+	UserID   string
+	Prefixes []string
 }
 
-// UseFileRepository использование файлового хранилища
-func UseFileRepository(baseURL string, filepath string) (err error) {
-	shortener, err = service.NewFileShortener(baseURL, filepath)
-
-	return
+type Handler struct {
+	sugar     *zap.SugaredLogger
+	shortener service.Shortener
+	delCh     chan DeleteTask
 }
 
-// UseMemoryRepository использование хранилища в памяти
-func UseMemoryRepository(baseURL string) {
-	shortener = service.NewMemoryShortener(baseURL)
+func NewHandler(sugar *zap.SugaredLogger, shortener service.Shortener, delCh chan DeleteTask) Handler {
+	return Handler{
+		sugar:     sugar,
+		shortener: shortener,
+		delCh:     delCh,
+	}
+}
+
+// getUserID - Получаем id пользователя из контекста запроса
+func (h Handler) getUserID(r *http.Request) (userID string, ok bool) {
+	return auth.GetUserId(r.Context())
 }
 
 // HandleGet - Обработчик Get запроса
-func HandleGet(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	prefix := chi.URLParam(r, "id")
 
-	URL, err := shortener.Rep.Get(prefix)
+	url, err := h.shortener.Rep.Get(prefix)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		h.sugar.Error(err)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	http.Redirect(rw, r, URL.OriginalURL, http.StatusTemporaryRedirect)
+	// Если ссылка помечена как удалённая - вместо редиректа выдаём 410 статус
+	if url.IsDeleted {
+		w.WriteHeader(http.StatusGone)
+		return
+	}
+
+	http.Redirect(w, r, url.OriginalURL, http.StatusTemporaryRedirect)
 }
 
 // HandlePost - Обработчик Post запроса
-func HandlePost(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.Plain {
-		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
+		h.sugar.Error(ErrInvalidContentType)
+		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Читаем тело запроса (ожидается ссылка)
 	originalURL, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		h.sugar.Errorf("ошибка при чтении тела запроса: %v", err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := shortener.Add(string(originalURL))
+	shortURL, err := h.shortener.Add(string(originalURL), userId)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
 		var conflictErr *errors2.OriginalURLConflictError
 		if errors.As(err, &conflictErr) {
-			diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
+			diffShortURL, err2 := h.shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
 			if err2 == nil {
-				rw.Header().Set("Content-Type", contentType.Plain)
-				rw.WriteHeader(http.StatusConflict)
-				rw.Write([]byte(diffShortURL))
+				w.Header().Set("Content-Type", contentType.Plain)
+				w.WriteHeader(http.StatusConflict)
+				w.Write([]byte(diffShortURL))
 
 				return
 			}
 		}
 
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	rw.Header().Set("Content-Type", contentType.Plain)
-	rw.WriteHeader(http.StatusCreated)
-	rw.Write([]byte(shortURL))
+	w.Header().Set("Content-Type", contentType.Plain)
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(shortURL))
 }
 
 // HandlePostJSON - Обработчик для запроса Post /api/shorten
-func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
-		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
+		h.sugar.Error(ErrInvalidContentType)
+		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -109,7 +131,9 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 		URL string `json:"url"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		err = fmt.Errorf("ошибка парсинга json: %w", err)
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -118,13 +142,20 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 		Result string `json:"result"`
 	}
 
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
 	// Получаем сокращённую ссылку
-	shortURL, err := shortener.Add(request.URL)
+	shortURL, err := h.shortener.Add(request.URL, userId)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
 		if conflictErr, ok := errors.AsType[*errors2.OriginalURLConflictError](err); ok {
-			diffShortURL, err2 := shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
+			diffShortURL, err2 := h.shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
 			if err2 == nil {
 
 				// Подготавливаем json ответ
@@ -134,16 +165,17 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 					},
 				)
 				if err3 == nil {
-					rw.Header().Set("Content-Type", contentType.JSON)
-					rw.WriteHeader(http.StatusConflict)
-					rw.Write(responseJSON)
+					w.Header().Set("Content-Type", contentType.JSON)
+					w.WriteHeader(http.StatusConflict)
+					w.Write(responseJSON)
 
 					return
 				}
 			}
 		}
 
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -154,20 +186,22 @@ func HandlePostJSON(rw http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	rw.Header().Set("Content-Type", contentType.JSON)
-	rw.WriteHeader(http.StatusCreated)
-	rw.Write(responseJSON)
+	w.Header().Set("Content-Type", contentType.JSON)
+	w.WriteHeader(http.StatusCreated)
+	w.Write(responseJSON)
 }
 
 // HandlePostBatch - Обработчик для запроса Post /api/shorten/batch (массовое создание)
-func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
+func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
 	if r.Header.Get("Content-Type") != contentType.JSON {
-		http.Error(rw, ErrInvalidContentType.Error(), http.StatusBadRequest)
+		h.sugar.Error(ErrInvalidContentType)
+		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -179,12 +213,15 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	// Читаем URL из json
 	requestItems := make([]requestItem, 0)
 	if err := json.NewDecoder(r.Body).Decode(&requestItems); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		err = fmt.Errorf("ошибка при парсинге json: %w", err)
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if len(requestItems) == 0 {
-		http.Error(rw, ErrEmptyBatch.Error(), http.StatusBadRequest)
+		h.sugar.Error(ErrEmptyBatch)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -194,13 +231,22 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 		originalURLs = append(originalURLs, item.OriginalURL)
 	}
 
-	// Передаём слайс оригинальных ссылок на создание
-	mapURLs, err := shortener.AddMany(originalURLs)
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
+	// Передаём слайс оригинальных ссылок на создание
+	mapURLs, err := h.shortener.AddMany(originalURLs, userId)
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	// Подготавливаем ответ
 	type responseItem struct {
 		Prefix   string `json:"correlation_id"`
 		ShortURL string `json:"short_url"`
@@ -214,34 +260,118 @@ func HandlePostBatch(rw http.ResponseWriter, r *http.Request) {
 	// Подготавливаем json ответ
 	response, err := json.Marshal(responseItems)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-
+		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	rw.Header().Set("Content-Type", contentType.JSON)
-	rw.WriteHeader(http.StatusCreated)
-	rw.Write(response)
+	w.Header().Set("Content-Type", contentType.JSON)
+	w.WriteHeader(http.StatusCreated)
+	w.Write(response)
 }
 
 // HandleFails - обработчик для ошибочных запросов
-func HandleFails(w http.ResponseWriter, r *http.Request) {
+func (h Handler) HandleFails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType.Plain)
 	http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 }
 
 // HandleGetPing - Обработчик Get запроса /ping
-func HandleGetPing(sugar *zap.SugaredLogger) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Проверяем соединение и в случае ошибки - пишем в чём дело
-		if err := shortener.Rep.Ping(); err != nil {
-			sugar.Error(err)
+func (h Handler) HandleGetPing(w http.ResponseWriter, r *http.Request) {
+	// Проверяем соединение и в случае ошибки - пишем в чём дело
+	if err := h.shortener.Rep.Ping(); err != nil {
+		h.sugar.Error(err)
 
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// HandleGetUserURLs - обработчик для Get запроса api/user/urls (массовое создание ссылок)
+func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	urls, err := h.shortener.Rep.FindFromUserID(userId)
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	// Если записей не нашли - возвращаем StatusNoContent
+	if len(urls) == 0 {
+		http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+		return
+	}
+
+	type responseItem struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+	responseItems := make([]responseItem, len(urls))
+
+	for i, url := range urls {
+
+		shortURL, err := h.shortener.GetURLFromPrefix(url.Prefix)
+		if err != nil {
+			h.sugar.Error(err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		responseItems[i] = responseItem{
+			ShortURL:    shortURL,
+			OriginalURL: url.OriginalURL,
+		}
 	}
+
+	// Подготавливаем json ответ
+	response, err := json.Marshal(responseItems)
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", contentType.JSON)
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
+}
+
+// HandleDeleteUserURLs - обработчик для Delete запроса api/user/urls (массовое удаление ссылок)
+func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
+	prefixes := make([]string, 0)
+	if err := json.NewDecoder(r.Body).Decode(&prefixes); err != nil {
+		h.sugar.Errorf("ошибка при декодировании json: %v", err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	if len(prefixes) == 0 {
+		http.Error(w, ErrEmptyBatch.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Получаем id пользователя
+	userId, ok := h.getUserID(r)
+	if !ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	// Отправляем задачу в канал для асинхронного удаления (fan-in паттерн)
+	go func() {
+		h.delCh <- DeleteTask{
+			UserID:   userId,
+			Prefixes: prefixes,
+		}
+	}()
+
+	w.WriteHeader(http.StatusAccepted)
 }

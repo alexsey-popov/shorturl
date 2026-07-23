@@ -27,25 +27,8 @@ func (rep *InFile) MarshalJSON() ([]byte, error) {
 	return json.Marshal(rep.data)
 }
 
-// Set - Сохраняем originalURL за значением prefix
-func (rep *InFile) Set(URL model.URL) error {
-	// Сначала пытаемся найти оригинальную ссылку в файле
-	// Если нашли - возвращаем специфическую ошибку с данными по существующей ссылке
-	diffURL, err := rep.FindFromOriginal(URL.OriginalURL)
-	if err == nil {
-		return errors2.NewErrOriginalURLConflict(diffURL, ErrOriginalURLConflict)
-	}
-
-	// Защищаем файл от конкурентного доступа
-	rep.mu.Lock()
-	defer rep.mu.Unlock()
-
-	// Записываем данные в память
-	err = rep.data.Set(URL)
-	if err != nil {
-		return err
-	}
-
+// UpdateFile - Обновление файла
+func (rep *InFile) UpdateFile() error {
 	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ошибка при сериализации данных: %w", err)
@@ -59,28 +42,50 @@ func (rep *InFile) Set(URL model.URL) error {
 	return nil
 }
 
-// SetMany - Сохраняем несколько ссылок
-func (rep *InFile) SetMany(URLs []model.URL) error {
+// Set - Сохраняем originalURL за значением prefix
+func (rep *InFile) Set(url model.URL) error {
+	// Сначала пытаемся найти оригинальную ссылку в файле
+	// Если нашли - возвращаем специфическую ошибку с данными по существующей ссылке
+	diffURL, err := rep.FindFromOriginal(url.OriginalURL)
+	if err == nil {
+		return errors2.NewErrOriginalURLConflict(diffURL, ErrOriginalURLConflict)
+	}
+
 	// Защищаем файл от конкурентного доступа
 	rep.mu.Lock()
 	defer rep.mu.Unlock()
 
-	for _, url := range URLs {
-		// Записываем данные в память
+	// Записываем данные в память
+	err = rep.data.Set(url)
+	if err != nil {
+		return err
+	}
+
+	// Обновляем файл
+	if err = rep.UpdateFile(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetMany - Сохраняем несколько ссылок
+func (rep *InFile) SetMany(urls []model.URL) error {
+	// Защищаем файл от конкурентного доступа
+	rep.mu.Lock()
+	defer rep.mu.Unlock()
+
+	for _, url := range urls {
+		// Записываем данные в память без сохранения файла на каждой итерации
 		err := rep.data.Set(url)
 		if err != nil {
 			return err
 		}
 	}
 
-	jsonData, err := json.MarshalIndent(rep.data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("ошибка при сериализации данных: %w", err)
-	}
-
-	err = os.WriteFile(rep.filename, jsonData, 0666)
-	if err != nil {
-		return fmt.Errorf("ошибка при записи в файл: %w", err)
+	// Обновляем файл только один раз
+	if err := rep.UpdateFile(); err != nil {
+		return err
 	}
 
 	return nil
@@ -92,8 +97,28 @@ func (rep *InFile) Get(prefix string) (model.URL, error) {
 }
 
 // FindFromOriginal - Поиск среди загруженных в память данных
-func (rep *InFile) FindFromOriginal(originalURL string) (item model.URL, err error) {
+func (rep *InFile) FindFromOriginal(originalURL string) (model.URL, error) {
 	return rep.data.FindFromOriginal(originalURL)
+}
+
+// FindFromUserID - поиск записей по id пользователя
+func (rep *InFile) FindFromUserID(userID string) ([]model.URL, error) {
+	return rep.data.FindFromUserID(userID)
+}
+
+// DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
+func (rep *InFile) DeleteManyFromUserId(prefixes []string, userID string) error {
+	// Удаляем в памяти
+	if err := rep.data.DeleteManyFromUserId(prefixes, userID); err != nil {
+		return err
+	}
+
+	//Сохраняем обновлённые результаты
+	if err := rep.UpdateFile(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // New - Конструктор

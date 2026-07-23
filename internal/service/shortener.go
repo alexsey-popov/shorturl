@@ -14,13 +14,17 @@ import (
 // Repository - Интерфейс для хранилищ
 type Repository interface {
 	// Set - Сохранение originalURL за значением prefix
-	Set(URL model.URL) error
+	Set(url model.URL) error
 	// SetMany - Сохранение нескольких ссылок
-	SetMany(URLs []model.URL) error
+	SetMany(urls []model.URL) error
 	// Get - Получение originalURL по значению prefix
-	Get(prefix string) (URL model.URL, err error)
+	Get(prefix string) (url model.URL, err error)
+	// FindFromUserID - Получение списка ссылок закреплённых за пользователем
+	FindFromUserID(userID string) (urls []model.URL, err error)
 	// FindFromOriginal - Поиск значений по значению originalURL
-	FindFromOriginal(originalURL string) (URL model.URL, err error)
+	FindFromOriginal(originalURL string) (url model.URL, err error)
+	// DeleteManyFromUserId - Массовое удаление ссылок принадлежащих пользователю
+	DeleteManyFromUserId(prefixes []string, userID string) error
 	// Ping - Проверка соединения
 	Ping() error
 }
@@ -69,48 +73,48 @@ func (s Shortener) CheckValidURL(originalURL string) (err error) {
 }
 
 // Add - Добавление новой ссылки
-func (s Shortener) Add(originalURL string) (string, error) {
+func (s Shortener) Add(originalURL string, userID string) (string, error) {
 	// Валидация ссылки
 	if err := s.CheckValidURL(originalURL); err != nil {
 		return "", err
 	}
 
-	URL := model.New(s.getNewPrefix(), originalURL)
+	item := model.New(s.getNewPrefix(), originalURL, userID)
 
-	err := s.Rep.Set(URL)
+	err := s.Rep.Set(item)
 	if err != nil {
 		return "", err
 	}
 
-	return s.GetURLFromPrefix(URL.Prefix)
+	return s.GetURLFromPrefix(item.Prefix)
 }
 
 // AddMany - множественное создание сокращённых ссылок
-func (s Shortener) AddMany(originalURLs []string) (mapURLs map[string]string, err error) {
+func (s Shortener) AddMany(originalURLs []string, userID string) (mapURLs map[string]string, err error) {
 	// Проверяем все ссылки на валидность и заполняем URLs
-	URLs := make([]model.URL, 0, len(originalURLs))
+	urls := make([]model.URL, 0, len(originalURLs))
 	for _, originalURL := range originalURLs {
 		if err = s.CheckValidURL(originalURL); err != nil {
 			return
 		}
 
-		URLs = append(URLs, model.New(s.getNewPrefix(), originalURL))
+		urls = append(urls, model.New(s.getNewPrefix(), originalURL, userID))
 	}
 
 	// Пытаемся сохранить данные в базе
-	err = s.Rep.SetMany(URLs)
+	err = s.Rep.SetMany(urls)
 	if err != nil {
 		return
 	}
 
 	mapURLs = make(map[string]string)
-	for _, url := range URLs {
-		shortURL, err := s.GetURLFromPrefix(url.Prefix)
+	for _, item := range urls {
+		shortURL, err := s.GetURLFromPrefix(item.Prefix)
 		if err != nil {
 			return nil, err
 		}
 
-		mapURLs[url.OriginalURL] = shortURL
+		mapURLs[item.OriginalURL] = shortURL
 	}
 
 	return
