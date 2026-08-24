@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
@@ -28,16 +30,23 @@ type DeleteTask struct {
 }
 
 type Handler struct {
-	sugar     *zap.SugaredLogger
-	shortener service.Shortener
-	delCh     chan DeleteTask
+	sugar        *zap.SugaredLogger
+	shortener    service.Shortener
+	delCh        chan DeleteTask
+	auditManager *audit.Publisher
 }
 
-func NewHandler(sugar *zap.SugaredLogger, shortener service.Shortener, delCh chan DeleteTask) Handler {
+func NewHandler(
+	sugar *zap.SugaredLogger,
+	shortener service.Shortener,
+	delCh chan DeleteTask,
+	auditManager *audit.Publisher,
+) Handler {
 	return Handler{
-		sugar:     sugar,
-		shortener: shortener,
-		delCh:     delCh,
+		sugar:        sugar,
+		shortener:    shortener,
+		delCh:        delCh,
+		auditManager: auditManager,
 	}
 }
 
@@ -61,6 +70,16 @@ func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	if url.IsDeleted {
 		w.WriteHeader(http.StatusGone)
 		return
+	}
+
+	userID, _ := h.getUserID(r)
+	if h.auditManager != nil {
+		h.auditManager.Notify(audit.Event{
+			Timestamp: time.Now().Unix(),
+			Action:    "follow",
+			UserID:    userID,
+			URL:       url.OriginalURL,
+		})
 	}
 
 	http.Redirect(w, r, url.OriginalURL, http.StatusTemporaryRedirect)
@@ -99,6 +118,15 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &conflictErr) {
 			diffShortURL, err2 := h.shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
 			if err2 == nil {
+				if h.auditManager != nil {
+					h.auditManager.Notify(audit.Event{
+						Timestamp: time.Now().Unix(),
+						Action:    "shorten",
+						UserID:    userId,
+						URL:       string(originalURL),
+					})
+				}
+
 				w.Header().Set("Content-Type", contentType.Plain)
 				w.WriteHeader(http.StatusConflict)
 				w.Write([]byte(diffShortURL))
@@ -110,6 +138,15 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
+	}
+
+	if h.auditManager != nil {
+		h.auditManager.Notify(audit.Event{
+			Timestamp: time.Now().Unix(),
+			Action:    "shorten",
+			UserID:    userId,
+			URL:       string(originalURL),
+		})
 	}
 
 	w.Header().Set("Content-Type", contentType.Plain)
@@ -165,6 +202,15 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 					},
 				)
 				if err3 == nil {
+					if h.auditManager != nil {
+						h.auditManager.Notify(audit.Event{
+							Timestamp: time.Now().Unix(),
+							Action:    "shorten",
+							UserID:    userId,
+							URL:       request.URL,
+						})
+					}
+
 					w.Header().Set("Content-Type", contentType.JSON)
 					w.WriteHeader(http.StatusConflict)
 					w.Write(responseJSON)
@@ -177,6 +223,15 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
+	}
+
+	if h.auditManager != nil {
+		h.auditManager.Notify(audit.Event{
+			Timestamp: time.Now().Unix(),
+			Action:    "shorten",
+			UserID:    userId,
+			URL:       request.URL,
+		})
 	}
 
 	// Подготавливаем json ответ

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/compact"
 	"github.com/alexsey-popov/shorturl/internal/config"
@@ -72,8 +73,27 @@ func main() {
 	// Запускаем воркеры для удаления ссылок
 	startDeleteWorkers(10, delCh, shortener, sugar)
 
+	// Создаём наблюдатель для аудита
+	var auditManager *audit.Publisher
+	if config.Server.HasAudit() {
+		auditManager = audit.NewPublisher(sugar)
+		if config.Server.AuditFile != "" {
+			fileObserver, err := audit.NewFileObserver(sugar, config.Server.AuditFile)
+			if err != nil {
+				sugar.Fatalf("ошибка при создании наблюдателя файла аудита: %v", err)
+			}
+			auditManager.Register(fileObserver)
+			sugar.Infoln("Аудит в файл включен")
+		}
+		if config.Server.AuditURL != "" {
+			urlObserver := audit.NewURLObserver(sugar, config.Server.AuditURL)
+			auditManager.Register(urlObserver)
+			sugar.Infoln("Аудит по URL включен")
+		}
+	}
+
 	// Создаём объект обработчика запросов
-	h := handler.NewHandler(sugar, shortener, delCh)
+	h := handler.NewHandler(sugar, shortener, delCh, auditManager)
 
 	// Объявляем роуты
 	r := chi.NewRouter()
