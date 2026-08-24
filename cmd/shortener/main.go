@@ -33,8 +33,9 @@ func main() {
 	sugar := l.Sugar()
 
 	// Парсим конфиг значениями из флагов и переменных окружения
-	if err = config.Parse(); err != nil {
-		sugar.Fatal(err)
+	cfg, err := config.NewParsed()
+	if err != nil {
+		sugar.Fatalf("ошибка при пирсинге конфига: %v", err.Error())
 	}
 
 	// Объект сокращателя ссылок
@@ -43,20 +44,20 @@ func main() {
 	// Пытаемся подключить различные виды хранилищ (по умолчанию используется хранение в памяти)
 	switch {
 	// Если указаны данные для подключения в БД - используем БД
-	case config.Server.DSN != "":
+	case cfg.DSN != "":
 		// Создаём объект взаимодействия с базой
-		db, err := connectDB(config.Server.DSN)
+		db, err := connectDB(cfg.DSN)
 		if err != nil {
-			sugar.Fatal(err)
+			sugar.Fatalf("ошибка при подключении к БД :%v", err.Error())
 		}
 		defer db.Close()
 
-		shortener = service.NewDBShortener(config.Server.BaseURL, db)
+		shortener = service.NewDBShortener(cfg.BaseURL, db)
 
 		sugar.Infoln("В качестве хранилища используется БД")
 	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
-	case config.Server.FilePath != "":
-		shortener, err = service.NewFileShortener(config.Server.BaseURL, config.Server.FilePath)
+	case cfg.FilePath != "":
+		shortener, err = service.NewFileShortener(cfg.BaseURL, cfg.FilePath)
 		if err != nil {
 			sugar.Fatal(err)
 		}
@@ -65,7 +66,7 @@ func main() {
 	default:
 		sugar.Infoln("В качестве хранилища используется ОЗУ")
 
-		shortener = service.NewMemoryShortener(config.Server.BaseURL)
+		shortener = service.NewMemoryShortener(cfg.BaseURL)
 	}
 
 	// Создаём канал для асинхронного удаления ссылок
@@ -75,18 +76,18 @@ func main() {
 
 	// Создаём наблюдатель для аудита
 	var auditManager *audit.Publisher
-	if config.Server.HasAudit() {
+	if cfg.HasAudit() {
 		auditManager = audit.NewPublisher(sugar)
-		if config.Server.AuditFile != "" {
-			fileObserver, err := audit.NewFileObserver(sugar, config.Server.AuditFile)
+		if cfg.AuditFile != "" {
+			fileObserver, err := audit.NewFileObserver(sugar, cfg.AuditFile)
 			if err != nil {
 				sugar.Fatalf("ошибка при создании наблюдателя файла аудита: %v", err)
 			}
 			auditManager.Register(fileObserver)
 			sugar.Infoln("Аудит в файл включен")
 		}
-		if config.Server.AuditURL != "" {
-			urlObserver := audit.NewURLObserver(sugar, config.Server.AuditURL)
+		if cfg.AuditURL != "" {
+			urlObserver := audit.NewURLObserver(sugar, cfg.AuditURL)
 			auditManager.Register(urlObserver)
 			sugar.Infoln("Аудит по URL включен")
 		}
@@ -105,7 +106,7 @@ func main() {
 	r.Use(compact.HTTPMiddleware(sugar))
 
 	// Аутентифицируем пользователя
-	r.Use(auth.NewHTTPMiddleware(config.Server.SecretKey, config.Server.TokenExp, sugar))
+	r.Use(auth.NewHTTPMiddleware(cfg.SecretKey, cfg.TokenExp, sugar))
 
 	r.Post("/", h.HandlePost)
 	r.Post("/api/shorten/batch", h.HandlePostBatch)
@@ -117,7 +118,7 @@ func main() {
 	r.MethodNotAllowed(h.HandleFails)
 
 	// Поднимает сервер
-	err = http.ListenAndServe(config.Server.NetAddress, r)
+	err = http.ListenAndServe(cfg.NetAddress, r)
 	if err != nil {
 		sugar.Fatalf("ошибка в работе сервера: %v", err)
 	}
