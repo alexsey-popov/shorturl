@@ -9,6 +9,7 @@ import (
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 )
 
 type InDB struct {
@@ -60,7 +61,7 @@ func (rep *InDB) SetMany(urls []model.URL) error {
 		users[i] = url.UserID
 	}
 
-	_, err = stmt.Exec(pref, orig, users)
+	_, err = stmt.Exec(pq.Array(pref), pq.Array(orig), pq.Array(users))
 	if err != nil {
 		return fmt.Errorf("ошибка при выполнении запроса к БД: %w", err)
 	}
@@ -70,7 +71,7 @@ func (rep *InDB) SetMany(urls []model.URL) error {
 
 // DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
 func (rep *InDB) DeleteManyFromUserId(prefixes []string, userID string) error {
-	_, err := rep.db.Exec("UPDATE urls SET is_deleted = true WHERE user_id = $1 AND prefix IN (SELECT UNNEST($2::text[]))", userID, prefixes)
+	_, err := rep.db.Exec("UPDATE urls SET is_deleted = true WHERE user_id = $1 AND prefix IN (SELECT UNNEST($2::text[]))", userID, pq.Array(prefixes))
 	if err != nil {
 		err = fmt.Errorf("ошибка при массовом обновлении is_deleted в БД: %w", err)
 	}

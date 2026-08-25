@@ -2,21 +2,26 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
+	"github.com/alexsey-popov/shorturl/internal/repository/inmemory"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"github.com/alexsey-popov/shorturl/pkg/contentType"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -345,4 +350,332 @@ func TestHandlerAudit(t *testing.T) {
 	if spy.events[2].Action != "follow" || spy.events[2].URL != originalURL {
 		t.Errorf("unexpected event 2: %+v", spy.events[2])
 	}
+}
+
+type mockRepository struct {
+	inmemory.InMemory
+	pingErr         error
+	findFromUserErr error
+}
+
+func (m *mockRepository) Ping() error {
+	if m.pingErr != nil {
+		return m.pingErr
+	}
+	return m.InMemory.Ping()
+}
+
+func (m *mockRepository) FindFromUserID(userID string) ([]model.URL, error) {
+	if m.findFromUserErr != nil {
+		return nil, m.findFromUserErr
+	}
+	return m.InMemory.FindFromUserID(userID)
+}
+
+func TestHandlePostBatch(t *testing.T) {
+	cfg := config.NewEmpty()
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+
+	t.Run("positive #1", func(t *testing.T) {
+		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
+		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
+		r.Header.Set("Content-Type", contentType.JSON)
+		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandlePostBatch(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusCreated, res.StatusCode)
+		assert.Contains(t, res.Header.Get("Content-Type"), contentType.JSON)
+	})
+
+	t.Run("negative #1 - invalid content-type", func(t *testing.T) {
+		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
+		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
+		r.Header.Set("Content-Type", contentType.Plain)
+		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandlePostBatch(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	})
+
+	t.Run("negative #2 - invalid json", func(t *testing.T) {
+		body := `invalid-json`
+		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
+		r.Header.Set("Content-Type", contentType.JSON)
+		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandlePostBatch(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	})
+
+	t.Run("negative #3 - empty batch", func(t *testing.T) {
+		body := `[]`
+		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
+		r.Header.Set("Content-Type", contentType.JSON)
+		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandlePostBatch(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	})
+
+	t.Run("negative #4 - unauthorized", func(t *testing.T) {
+		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
+		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
+		r.Header.Set("Content-Type", contentType.JSON)
+
+		w := httptest.NewRecorder()
+		h.HandlePostBatch(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	})
+
+	t.Run("negative #5 - invalid url in batch", func(t *testing.T) {
+		body := `[{"correlation_id": "1", "original_url": "not-a-url"}]`
+		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
+		r.Header.Set("Content-Type", contentType.JSON)
+		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandlePostBatch(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	})
+}
+
+func TestHandleFails(t *testing.T) {
+	cfg := config.NewEmpty()
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+
+	r := httptest.NewRequest(http.MethodGet, "/fails", nil)
+	w := httptest.NewRecorder()
+
+	h.HandleFails(w, r)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	assert.Contains(t, res.Header.Get("Content-Type"), contentType.Plain)
+}
+
+func TestHandleGetPing(t *testing.T) {
+	cfg := config.NewEmpty()
+
+	t.Run("success ping", func(t *testing.T) {
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		r := httptest.NewRequest(http.MethodGet, "/ping", nil)
+		w := httptest.NewRecorder()
+
+		h.HandleGetPing(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
+
+	t.Run("error ping", func(t *testing.T) {
+		mockRep := &mockRepository{
+			pingErr: errors.New("db down"),
+		}
+		shortener := service.Shortener{
+			Rep:     mockRep,
+			BaseURL: cfg.BaseURL,
+		}
+		h := NewHandler(zap.S(), shortener, nil, nil)
+		r := httptest.NewRequest(http.MethodGet, "/ping", nil)
+		w := httptest.NewRecorder()
+
+		h.HandleGetPing(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	})
+}
+
+func TestHandleGetUserURLs(t *testing.T) {
+	cfg := config.NewEmpty()
+	userID := "user-123"
+
+	t.Run("positive - found urls", func(t *testing.T) {
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		err := h.shortener.Rep.Set(model.New("pref1", "https://example.com/1", userID))
+		require.NoError(t, err)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
+		ctx := auth.SetUserId(r.Context(), userID)
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandleGetUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		assert.Contains(t, res.Header.Get("Content-Type"), contentType.JSON)
+	})
+
+	t.Run("positive - no urls (204)", func(t *testing.T) {
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
+		ctx := auth.SetUserId(r.Context(), userID)
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandleGetUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusNoContent, res.StatusCode)
+	})
+
+	t.Run("negative - unauthorized", func(t *testing.T) {
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
+		w := httptest.NewRecorder()
+		h.HandleGetUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	})
+
+	t.Run("negative - repository error", func(t *testing.T) {
+		mockRep := &mockRepository{
+			findFromUserErr: errors.New("db error"),
+		}
+		shortener := service.Shortener{
+			Rep:     mockRep,
+			BaseURL: cfg.BaseURL,
+		}
+		h := NewHandler(zap.S(), shortener, nil, nil)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
+		ctx := auth.SetUserId(r.Context(), userID)
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandleGetUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	})
+}
+
+func TestHandleDeleteUserURLs(t *testing.T) {
+	cfg := config.NewEmpty()
+	userID := "user-123"
+
+	t.Run("positive - accepted deletion task", func(t *testing.T) {
+		delCh := make(chan DeleteTask, 1)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), delCh, nil)
+
+		body := `["pref1", "pref2"]`
+		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
+		ctx := auth.SetUserId(r.Context(), userID)
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandleDeleteUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusAccepted, res.StatusCode)
+
+		select {
+		case task := <-delCh:
+			assert.Equal(t, userID, task.UserID)
+			assert.Equal(t, []string{"pref1", "pref2"}, task.Prefixes)
+		case <-time.After(time.Second):
+			t.Fatal("expected delete task in channel")
+		}
+	})
+
+	t.Run("negative - empty batch", func(t *testing.T) {
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+
+		body := `[]`
+		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
+		ctx := auth.SetUserId(r.Context(), userID)
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandleDeleteUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	})
+
+	t.Run("negative - unauthorized", func(t *testing.T) {
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+
+		body := `["pref1"]`
+		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		h.HandleDeleteUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	})
+
+	t.Run("negative - invalid json", func(t *testing.T) {
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+
+		body := `invalid-json`
+		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
+		ctx := auth.SetUserId(r.Context(), userID)
+		r = r.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		h.HandleDeleteUserURLs(w, r)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	})
 }
