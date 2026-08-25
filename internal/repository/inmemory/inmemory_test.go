@@ -225,3 +225,60 @@ func TestConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 }
+
+func BenchmarkInMemory_Set(b *testing.B) {
+	rep := New()
+	url := model.URL{
+		Prefix:      "abc12345",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+		IsDeleted:   false,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = rep.Set(url)
+	}
+}
+
+func BenchmarkInMemory_Get(b *testing.B) {
+	rep := New()
+	url := model.URL{
+		Prefix:      "abc12345",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+		IsDeleted:   false,
+	}
+	_ = rep.Set(url)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = rep.Get("abc12345")
+	}
+}
+
+func BenchmarkInMemory_FindFromOriginal(b *testing.B) {
+	rep := New()
+	url := model.URL{
+		Prefix:      "abc12345",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+		IsDeleted:   false,
+	}
+	_ = rep.Set(url)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = rep.FindFromOriginal("https://example.com")
+	}
+}
+
+func BenchmarkInMemory_FindFromUserID(b *testing.B) {
+	rep := New()
+	urls := []model.URL{
+		{Prefix: "pref1", OriginalURL: "https://example.com/1", UserID: "user-1"},
+		{Prefix: "pref2", OriginalURL: "https://example.com/2", UserID: "user-1"},
+	}
+	_ = rep.SetMany(urls)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = rep.FindFromUserID("user-1")
+	}
+}

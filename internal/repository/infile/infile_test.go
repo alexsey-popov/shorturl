@@ -201,3 +201,76 @@ func TestMarshalJSON(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, data)
 }
+
+func BenchmarkInFile_Set(b *testing.B) {
+	tmpDir := b.TempDir()
+	filename := filepath.Join(tmpDir, "bench.json")
+	rep, err := New(filename)
+	require.NoError(b, err)
+
+	url := model.URL{
+		Prefix:      "abc12345",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+		IsDeleted:   false,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = rep.Set(url)
+	}
+}
+
+func BenchmarkInFile_Get(b *testing.B) {
+	tmpDir := b.TempDir()
+	filename := filepath.Join(tmpDir, "bench.json")
+	rep, err := New(filename)
+	require.NoError(b, err)
+
+	url := model.URL{
+		Prefix:      "abc12345",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+		IsDeleted:   false,
+	}
+	_ = rep.Set(url)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = rep.Get("abc12345")
+	}
+}
+
+func BenchmarkInFile_FindFromOriginal(b *testing.B) {
+	tmpDir := b.TempDir()
+	filename := filepath.Join(tmpDir, "bench.json")
+	rep, err := New(filename)
+	require.NoError(b, err)
+
+	url := model.URL{
+		Prefix:      "abc12345",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+		IsDeleted:   false,
+	}
+	_ = rep.Set(url)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = rep.FindFromOriginal("https://example.com")
+	}
+}
+
+func BenchmarkInFile_FindFromUserID(b *testing.B) {
+	tmpDir := b.TempDir()
+	filename := filepath.Join(tmpDir, "bench.json")
+	rep, err := New(filename)
+	require.NoError(b, err)
+
+	urls := []model.URL{
+		{Prefix: "pref1", OriginalURL: "https://example.com/1", UserID: "user-1"},
+		{Prefix: "pref2", OriginalURL: "https://example.com/2", UserID: "user-1"},
+	}
+	_ = rep.SetMany(urls)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = rep.FindFromUserID("user-1")
+	}
+}

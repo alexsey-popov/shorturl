@@ -264,3 +264,89 @@ func TestFindFromUserID(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func BenchmarkInDB_Set(b *testing.B) {
+	db, mock, err := sqlmock.New()
+	require.NoError(b, err)
+	defer db.Close()
+
+	rep := New(db)
+	url := model.New("pref1", "https://example.com", "user-1")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mock.ExpectExec("INSERT INTO urls \\(prefix, original_url, user_id\\) VALUES \\(\\$1, \\$2, \\$3\\)").
+			WithArgs(url.Prefix, url.OriginalURL, url.UserID).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		_ = rep.Set(url)
+	}
+}
+
+func BenchmarkInDB_Get(b *testing.B) {
+	db, mock, err := sqlmock.New()
+	require.NoError(b, err)
+	defer db.Close()
+
+	rep := New(db)
+	uID := "uuid-1"
+	pref := "pref1"
+	orig := "https://example.com"
+	userID := "user-1"
+	isDeleted := false
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rows := sqlmock.NewRows([]string{"id", "prefix", "original_url", "user_id", "is_deleted"}).
+			AddRow(uID, pref, orig, userID, isDeleted)
+
+		mock.ExpectQuery("SELECT id, prefix, original_url, user_id, is_deleted FROM urls where prefix = \\$1").
+			WithArgs(pref).
+			WillReturnRows(rows)
+
+		_, _ = rep.Get(pref)
+	}
+}
+
+func BenchmarkInDB_FindFromOriginal(b *testing.B) {
+	db, mock, err := sqlmock.New()
+	require.NoError(b, err)
+	defer db.Close()
+
+	rep := New(db)
+	orig := "https://example.com"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rows := sqlmock.NewRows([]string{"id", "prefix", "original_url", "user_id", "is_deleted"}).
+			AddRow("uuid-1", "pref1", orig, "user-1", false)
+
+		mock.ExpectQuery("SELECT id, prefix, original_url, user_id, is_deleted FROM urls where original_url = \\$1").
+			WithArgs(orig).
+			WillReturnRows(rows)
+
+		_, _ = rep.FindFromOriginal(orig)
+	}
+}
+
+func BenchmarkInDB_FindFromUserID(b *testing.B) {
+	db, mock, err := sqlmock.New()
+	require.NoError(b, err)
+	defer db.Close()
+
+	rep := New(db)
+	userID := "user-1"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rows := sqlmock.NewRows([]string{"id", "prefix", "original_url", "user_id", "is_deleted"}).
+			AddRow("uuid-1", "pref1", "https://example.com/1", userID, false).
+			AddRow("uuid-2", "pref2", "https://example.com/2", userID, false)
+
+		mock.ExpectQuery("SELECT id, prefix, original_url, user_id, is_deleted FROM urls where user_id = \\$1").
+			WithArgs(userID).
+			WillReturnRows(rows)
+
+		_, _ = rep.FindFromUserID(userID)
+	}
+}

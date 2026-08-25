@@ -679,3 +679,42 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
 	})
 }
+
+func BenchmarkHandlePost(b *testing.B) {
+	cfg := config.NewEmpty()
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/benchmark"))
+		r.Header.Set("Content-Type", contentType.Plain)
+		w := httptest.NewRecorder()
+		h.HandlePost(w, r)
+	}
+}
+
+func BenchmarkHandleGet(b *testing.B) {
+	cfg := config.NewEmpty()
+	rep := inmemory.New()
+	url := model.URL{
+		Prefix:      "bench1",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+	}
+	_ = rep.Set(url)
+	shortener := service.Shortener{
+		Rep:     rep,
+		BaseURL: cfg.BaseURL,
+	}
+	h := NewHandler(zap.S(), shortener, nil, nil)
+
+	r := httptest.NewRequest(http.MethodGet, "/bench1", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "bench1")
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w := httptest.NewRecorder()
+		h.HandleGet(w, r)
+	}
+}
