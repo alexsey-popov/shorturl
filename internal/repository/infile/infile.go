@@ -12,6 +12,7 @@ import (
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 )
 
+// ErrOriginalURLConflict - ошибка нарушения уникальности оригинального URL.
 var ErrOriginalURLConflict = errors.New("эта ссылка уже сокращалась ранее")
 
 // InFile - хранение данных в файле.
@@ -121,7 +122,7 @@ func (rep *InFile) DeleteManyFromUserId(prefixes []string, userID string) error 
 	return nil
 }
 
-// New - Конструктор
+// New - конструктор InFile.
 func New(filename string) (*InFile, error) {
 	rep := InFile{
 		data:     inmemory.New(),

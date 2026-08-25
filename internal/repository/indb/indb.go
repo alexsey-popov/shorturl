@@ -12,6 +12,7 @@ import (
 	"github.com/lib/pq"
 )
 
+// InDB - хранение данных в базе данных PostgreSQL.
 type InDB struct {
 	db *sql.DB
 }
@@ -136,6 +137,7 @@ func (rep *InDB) Ping() error {
 	return rep.db.Ping()
 }
 
+// New - конструктор InDB.
 func New(db *sql.DB) *InDB {
 	return &InDB{
 		db: db,

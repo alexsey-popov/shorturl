@@ -18,17 +18,21 @@ import (
 )
 
 var (
+	// ErrInvalidContentType - ошибка некорректного типа содержимого запроса.
 	ErrInvalidContentType = errors.New("некорректный тип содержимого запроса")
-	ErrInvalidRequest     = errors.New("некорректный запрос")
-	ErrEmptyBatch         = errors.New("пустая пачка данных")
+	// ErrInvalidRequest - ошибка некорректного запроса.
+	ErrInvalidRequest = errors.New("некорректный запрос")
+	// ErrEmptyBatch - ошибка пустого пакета данных.
+	ErrEmptyBatch = errors.New("пустая пачка данных")
 )
 
-// DeleteTask - Задача на удаление ссылок пользователя
+// DeleteTask - Задача на удаление ссылок пользователя.
 type DeleteTask struct {
 	UserID   string
 	Prefixes []string
 }
 
+// Handler - структура HTTP-хендеров приложения.
 type Handler struct {
 	sugar        *zap.SugaredLogger
 	shortener    service.Shortener
@@ -36,6 +40,7 @@ type Handler struct {
 	auditManager *audit.Publisher
 }
 
+// NewHandler - конструктор Handler.
 func NewHandler(
 	sugar *zap.SugaredLogger,
 	shortener service.Shortener,
