@@ -154,9 +154,20 @@ func (rep *InMemory) FindFromUserID(userID string) (urls []model.URL, err error)
 	rep.mu.RLock()
 	defer rep.mu.RUnlock()
 
+	count := 0
 	for _, item := range rep.data {
 		if item.UserID == userID {
+			count++
+		}
+	}
 
+	if count == 0 {
+		return nil, nil
+	}
+
+	urls = make([]model.URL, 0, count)
+	for _, item := range rep.data {
+		if item.UserID == userID {
 			urls = append(urls, item)
 		}
 	}

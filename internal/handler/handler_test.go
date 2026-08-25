@@ -718,3 +718,46 @@ func BenchmarkHandleGet(b *testing.B) {
 		h.HandleGet(w, r)
 	}
 }
+
+func BenchmarkHandlePostParallel(b *testing.B) {
+	cfg := config.NewEmpty()
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/"+uuid.NewString()))
+			r.Header.Set("Content-Type", contentType.Plain)
+			w := httptest.NewRecorder()
+			h.HandlePost(w, r)
+		}
+	})
+}
+
+func BenchmarkHandleGetParallel(b *testing.B) {
+	cfg := config.NewEmpty()
+	rep := inmemory.New()
+	url := model.URL{
+		Prefix:      "bench-par",
+		OriginalURL: "https://example.com",
+		UserID:      "user-1",
+	}
+	_ = rep.Set(url)
+	shortener := service.Shortener{
+		Rep:     rep,
+		BaseURL: cfg.BaseURL,
+	}
+	h := NewHandler(zap.S(), shortener, nil, nil)
+
+	r := httptest.NewRequest(http.MethodGet, "/bench-par", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "bench-par")
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			w := httptest.NewRecorder()
+			h.HandleGet(w, r)
+		}
+	})
+}
