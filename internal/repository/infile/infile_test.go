@@ -215,7 +215,7 @@ func BenchmarkInFile_Set(b *testing.B) {
 		IsDeleted:   false,
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = rep.Set(url)
 	}
 }
@@ -234,7 +234,7 @@ func BenchmarkInFile_Get(b *testing.B) {
 	}
 	_ = rep.Set(url)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = rep.Get("abc12345")
 	}
 }
@@ -253,7 +253,7 @@ func BenchmarkInFile_FindFromOriginal(b *testing.B) {
 	}
 	_ = rep.Set(url)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = rep.FindFromOriginal("https://example.com")
 	}
 }
@@ -270,7 +270,7 @@ func BenchmarkInFile_FindFromUserID(b *testing.B) {
 	}
 	_ = rep.SetMany(urls)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = rep.FindFromUserID("user-1")
 	}
 }

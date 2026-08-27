@@ -274,7 +274,7 @@ func BenchmarkInDB_Set(b *testing.B) {
 	url := model.New("pref1", "https://example.com", "user-1")
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mock.ExpectExec("INSERT INTO urls \\(prefix, original_url, user_id\\) VALUES \\(\\$1, \\$2, \\$3\\)").
 			WithArgs(url.Prefix, url.OriginalURL, url.UserID).
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -296,7 +296,7 @@ func BenchmarkInDB_Get(b *testing.B) {
 	isDeleted := false
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rows := sqlmock.NewRows([]string{"id", "prefix", "original_url", "user_id", "is_deleted"}).
 			AddRow(uID, pref, orig, userID, isDeleted)
 
@@ -317,7 +317,7 @@ func BenchmarkInDB_FindFromOriginal(b *testing.B) {
 	orig := "https://example.com"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rows := sqlmock.NewRows([]string{"id", "prefix", "original_url", "user_id", "is_deleted"}).
 			AddRow("uuid-1", "pref1", orig, "user-1", false)
 
@@ -338,7 +338,7 @@ func BenchmarkInDB_FindFromUserID(b *testing.B) {
 	userID := "user-1"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rows := sqlmock.NewRows([]string{"id", "prefix", "original_url", "user_id", "is_deleted"}).
 			AddRow("uuid-1", "pref1", "https://example.com/1", userID, false).
 			AddRow("uuid-2", "pref2", "https://example.com/2", userID, false)

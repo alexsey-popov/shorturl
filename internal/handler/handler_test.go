@@ -684,7 +684,7 @@ func BenchmarkHandlePost(b *testing.B) {
 	cfg := config.NewEmpty()
 	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/benchmark"))
 		r.Header.Set("Content-Type", contentType.Plain)
 		w := httptest.NewRecorder()
@@ -713,7 +713,7 @@ func BenchmarkHandleGet(b *testing.B) {
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		w := httptest.NewRecorder()
 		h.HandleGet(w, r)
 	}

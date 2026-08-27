@@ -235,7 +235,7 @@ func BenchmarkInMemory_Set(b *testing.B) {
 		IsDeleted:   false,
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = rep.Set(url)
 	}
 }
@@ -250,7 +250,7 @@ func BenchmarkInMemory_Get(b *testing.B) {
 	}
 	_ = rep.Set(url)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = rep.Get("abc12345")
 	}
 }
@@ -265,7 +265,7 @@ func BenchmarkInMemory_FindFromOriginal(b *testing.B) {
 	}
 	_ = rep.Set(url)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = rep.FindFromOriginal("https://example.com")
 	}
 }
@@ -278,7 +278,7 @@ func BenchmarkInMemory_FindFromUserID(b *testing.B) {
 	}
 	_ = rep.SetMany(urls)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = rep.FindFromUserID("user-1")
 	}
 }
