@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
@@ -71,8 +72,9 @@ func main() {
 
 	// Создаём канал для асинхронного удаления ссылок
 	delCh := make(chan handler.DeleteTask, 100)
+	var delWG sync.WaitGroup
 	// Запускаем воркеры для удаления ссылок
-	startDeleteWorkers(10, delCh, shortener, sugar)
+	startDeleteWorkers(10, delCh, &delWG, shortener, sugar)
 
 	// Создаём наблюдатель для аудита
 	var auditManager *audit.Publisher
@@ -159,9 +161,18 @@ func connectDB(serverDSN string) (*sql.DB, error) {
 }
 
 // startDeleteWorkers - Запуск воркер-пула для удаления ссылок
-func startDeleteWorkers(num int, delCh <-chan handler.DeleteTask, shortener service.Shortener, logger *zap.SugaredLogger) {
+func startDeleteWorkers(
+	num int,
+	delCh <-chan handler.DeleteTask,
+	wg *sync.WaitGroup,
+	shortener service.Shortener,
+	logger *zap.SugaredLogger,
+) {
 	for i := 0; i < num; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
+
 			for task := range delCh {
 				err := shortener.Rep.DeleteManyFromUserId(task.Prefixes, task.UserID)
 				if err != nil {

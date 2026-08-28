@@ -1,8 +1,8 @@
 package main
 
 import (
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/alexsey-popov/shorturl/internal/handler"
 	"github.com/alexsey-popov/shorturl/internal/model"
@@ -37,15 +37,16 @@ func TestStartDeleteWorkers(t *testing.T) {
 	require.NoError(t, s.Rep.Set(url))
 
 	delCh := make(chan handler.DeleteTask, 10)
-	startDeleteWorkers(2, delCh, s, sugar)
+	var wg sync.WaitGroup
+	startDeleteWorkers(2, delCh, &wg, s, sugar)
 
 	delCh <- handler.DeleteTask{
 		Prefixes: []string{"abc1234"},
 		UserID:   "user-1",
 	}
 
-	// Даем воркерам время обработать задачу
-	time.Sleep(100 * time.Millisecond)
+	close(delCh)
+	wg.Wait()
 
 	got, err := s.Rep.Get("abc1234")
 	assert.NoError(t, err)
