@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -21,7 +22,7 @@ type Event struct {
 
 // Observer - Интерфейс наблюдателя
 type Observer interface {
-	Update(event Event)
+	Update(ctx context.Context, event Event)
 	Close() error
 }
 
@@ -48,12 +49,12 @@ func (p *Publisher) Register(obs Observer) {
 }
 
 // Notify - Уведомление всех наблюдателей о событии
-func (p *Publisher) Notify(event Event) {
+func (p *Publisher) Notify(ctx context.Context, event Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for _, obs := range p.observers {
-		obs.Update(event)
+		obs.Update(ctx, event)
 	}
 }
 

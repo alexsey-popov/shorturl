@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
@@ -34,7 +35,7 @@ func NewFileObserver(l *zap.SugaredLogger, filePath string) (*FileObserver, erro
 }
 
 // Update - Запись события в файл
-func (f *FileObserver) Update(event Event) {
+func (f *FileObserver) Update(ctx context.Context, event Event) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		f.log.Errorf("ошибка при сериализации в json: %v", err.Error())

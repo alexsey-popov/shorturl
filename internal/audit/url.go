@@ -2,6 +2,7 @@ package audit
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -25,7 +26,7 @@ func NewURLObserver(l *zap.SugaredLogger, url string) *URLObserver {
 }
 
 // Update - Отправка POST запроса с событием аудита
-func (u *URLObserver) Update(event Event) {
+func (u *URLObserver) Update(ctx context.Context, event Event) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		u.log.Errorf("ошибка при сериализации json: %v", err.Error())
@@ -33,7 +34,7 @@ func (u *URLObserver) Update(event Event) {
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPost, u.url, bytes.NewBuffer(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.url, bytes.NewBuffer(data))
 	if err != nil {
 		u.log.Errorf("ошибка при создании запроса: %v", err.Error())
 

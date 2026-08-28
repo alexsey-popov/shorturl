@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ type fakeObserver struct {
 }
 
 // Update - Добавление события
-func (f *fakeObserver) Update(event Event) {
+func (f *fakeObserver) Update(ctx context.Context, event Event) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.events = append(f.events, event)
@@ -41,7 +42,7 @@ func TestPublisher(t *testing.T) {
 		UserID:    "user123",
 		URL:       "https://example.com/long",
 	}
-	p.Notify(e)
+	p.Notify(context.Background(), e)
 
 	o.mu.Lock()
 	defer o.mu.Unlock()

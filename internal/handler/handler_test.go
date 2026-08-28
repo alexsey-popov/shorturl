@@ -287,7 +287,7 @@ type fakeObserver struct {
 	events []audit.Event
 }
 
-func (f *fakeObserver) Update(event audit.Event) {
+func (f *fakeObserver) Update(ctx context.Context, event audit.Event) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.events = append(f.events, event)

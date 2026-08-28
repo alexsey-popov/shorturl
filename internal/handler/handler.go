@@ -79,7 +79,7 @@ func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	userID, _ := h.getUserID(r)
 	if h.auditManager != nil {
-		h.auditManager.Notify(audit.Event{
+		h.auditManager.Notify(r.Context(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "follow",
 			UserID:    userID,
@@ -124,7 +124,7 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 			diffShortURL, err2 := h.shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
 			if err2 == nil {
 				if h.auditManager != nil {
-					h.auditManager.Notify(audit.Event{
+					h.auditManager.Notify(r.Context(), audit.Event{
 						Timestamp: time.Now().Unix(),
 						Action:    "shorten",
 						UserID:    userId,
@@ -146,7 +146,7 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.auditManager != nil {
-		h.auditManager.Notify(audit.Event{
+		h.auditManager.Notify(r.Context(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "shorten",
 			UserID:    userId,
@@ -208,7 +208,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 				)
 				if err3 == nil {
 					if h.auditManager != nil {
-						h.auditManager.Notify(audit.Event{
+						h.auditManager.Notify(r.Context(), audit.Event{
 							Timestamp: time.Now().Unix(),
 							Action:    "shorten",
 							UserID:    userId,
@@ -231,7 +231,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.auditManager != nil {
-		h.auditManager.Notify(audit.Event{
+		h.auditManager.Notify(r.Context(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "shorten",
 			UserID:    userId,

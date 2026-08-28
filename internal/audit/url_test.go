@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -39,7 +40,7 @@ func TestURLObserver(t *testing.T) {
 		URL:       "https://example.com/target",
 	}
 
-	obs.Update(event)
+	obs.Update(context.Background(), event)
 
 	mu.Lock()
 	defer mu.Unlock()
