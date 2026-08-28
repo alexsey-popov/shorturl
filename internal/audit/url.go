@@ -6,21 +6,26 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 )
 
 // URLObserver - Наблюдатель для отправки аудита по HTTP URL
 type URLObserver struct {
 	url    string
-	client *http.Client
+	client *retryablehttp.Client
 	log    *zap.SugaredLogger
 }
 
 // NewURLObserver - Конструктор наблюдателя URL
 func NewURLObserver(l *zap.SugaredLogger, url string) *URLObserver {
+	client := retryablehttp.NewClient()
+	client.HTTPClient.Timeout = Timeout
+	client.Logger = nil
+
 	return &URLObserver{
 		url:    url,
-		client: &http.Client{Timeout: Timeout},
+		client: client,
 		log:    l,
 	}
 }
@@ -34,7 +39,7 @@ func (u *URLObserver) Update(ctx context.Context, event Event) {
 		return
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.url, bytes.NewBuffer(data))
+	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodPost, u.url, bytes.NewBuffer(data))
 	if err != nil {
 		u.log.Errorf("ошибка при создании запроса: %v", err.Error())
 
