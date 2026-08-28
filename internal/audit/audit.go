@@ -31,6 +31,8 @@ type Publisher struct {
 	mu        sync.Mutex
 	observers []Observer
 	log       *zap.SugaredLogger
+	sem       chan struct{}
+	wg        sync.WaitGroup
 }
 
 // NewPublisher - Конструктор менеджера аудита
@@ -38,6 +40,7 @@ func NewPublisher(l *zap.SugaredLogger) *Publisher {
 	return &Publisher{
 		observers: make([]Observer, 0),
 		log:       l,
+		sem:       make(chan struct{}, 10),
 	}
 }
 
@@ -51,15 +54,33 @@ func (p *Publisher) Register(obs Observer) {
 // Notify - Уведомление всех наблюдателей о событии
 func (p *Publisher) Notify(ctx context.Context, event Event) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	observers := make([]Observer, len(p.observers))
+	copy(observers, p.observers)
+	p.mu.Unlock()
 
-	for _, obs := range p.observers {
-		obs.Update(ctx, event)
+	for _, obs := range observers {
+		if p.sem != nil {
+			p.sem <- struct{}{}
+		}
+		p.wg.Add(1)
+		go func(o Observer) {
+			if p.sem != nil {
+				defer func() { <-p.sem }()
+			}
+			defer p.wg.Done()
+			o.Update(ctx, event)
+		}(obs)
 	}
+}
+
+// Wait - Ожидание завершения всех текущих уведомлений
+func (p *Publisher) Wait() {
+	p.wg.Wait()
 }
 
 // Close Закрытие наблюдателей
 func (p *Publisher) Close() error {
+	p.wg.Wait()
 	errs := make([]error, len(p.observers))
 
 	p.mu.Lock()

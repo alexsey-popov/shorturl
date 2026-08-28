@@ -340,6 +340,8 @@ func TestHandlerAudit(t *testing.T) {
 	w3 := httptest.NewRecorder()
 	h.HandleGet(w3, r3)
 
+	p.Wait()
+
 	spy.mu.Lock()
 	defer spy.mu.Unlock()
 
@@ -347,14 +349,28 @@ func TestHandlerAudit(t *testing.T) {
 		t.Fatalf("expected 3 audit events, got %d", len(spy.events))
 	}
 
-	if spy.events[0].Action != "shorten" || spy.events[0].URL != "https://example.com/test1" {
-		t.Errorf("unexpected event 0: %+v", spy.events[0])
+	foundShorten1 := false
+	foundShorten2 := false
+	foundFollow := false
+
+	for _, ev := range spy.events {
+		switch ev.Action {
+		case "shorten":
+			if ev.URL == "https://example.com/test1" && ev.UserID == "user1" {
+				foundShorten1 = true
+			}
+			if ev.URL == "https://example.com/test2" && ev.UserID == "user1" {
+				foundShorten2 = true
+			}
+		case "follow":
+			if ev.URL == originalURL {
+				foundFollow = true
+			}
+		}
 	}
-	if spy.events[1].Action != "shorten" || spy.events[1].URL != "https://example.com/test2" {
-		t.Errorf("unexpected event 1: %+v", spy.events[1])
-	}
-	if spy.events[2].Action != "follow" || spy.events[2].URL != originalURL {
-		t.Errorf("unexpected event 2: %+v", spy.events[2])
+
+	if !foundShorten1 || !foundShorten2 || !foundFollow {
+		t.Errorf("did not find all expected audit events: %+v", spy.events)
 	}
 }
 

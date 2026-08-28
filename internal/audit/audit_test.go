@@ -43,6 +43,7 @@ func TestPublisher(t *testing.T) {
 		URL:       "https://example.com/long",
 	}
 	p.Notify(context.Background(), e)
+	p.Wait()
 
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -52,5 +53,33 @@ func TestPublisher(t *testing.T) {
 	}
 	if o.events[0] != e {
 		t.Errorf("ожидалось событие %+v, а получили %+v", e, o.events[0])
+	}
+}
+
+// Тестирование ограничения количества горутин и параллельного уведомления
+func TestPublisherConcurrency(t *testing.T) {
+	l := zap.NewNop().Sugar()
+	p := NewPublisher(l)
+	defer p.Close()
+
+	o := &fakeObserver{}
+	p.Register(o)
+
+	const totalEvents = 50
+	for i := 0; i < totalEvents; i++ {
+		p.Notify(context.Background(), Event{
+			Timestamp: time.Now().Unix(),
+			Action:    "test",
+			UserID:    "user",
+			URL:       "https://example.com",
+		})
+	}
+	p.Wait()
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if len(o.events) != totalEvents {
+		t.Fatalf("ожидалось %d событий, а получили: %d", totalEvents, len(o.events))
 	}
 }
