@@ -293,11 +293,17 @@ func (f *fakeObserver) Update(event audit.Event) {
 	f.events = append(f.events, event)
 }
 
+func (f *fakeObserver) Close() error {
+	return nil
+}
+
 func TestHandlerAudit(t *testing.T) {
 	cfg := config.NewEmpty()
 
 	l := zap.NewNop().Sugar()
 	p := audit.NewPublisher(l)
+	defer p.Close()
+
 	spy := &fakeObserver{}
 	p.Register(spy)
 

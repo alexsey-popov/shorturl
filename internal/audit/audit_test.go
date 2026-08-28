@@ -15,16 +15,22 @@ type fakeObserver struct {
 }
 
 // Update - Добавление события
-func (o *fakeObserver) Update(event Event) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	o.events = append(o.events, event)
+func (f *fakeObserver) Update(event Event) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.events = append(f.events, event)
+}
+
+// Close - Закрытие наблюдателя
+func (f *fakeObserver) Close() error {
+	return nil
 }
 
 // Тестирование наблюдателя
 func TestPublisher(t *testing.T) {
 	l := zap.NewNop().Sugar()
 	p := NewPublisher(l)
+	defer p.Close()
 
 	o := &fakeObserver{}
 	p.Register(o)

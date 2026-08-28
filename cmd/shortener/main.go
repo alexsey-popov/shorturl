@@ -78,6 +78,8 @@ func main() {
 	var auditManager *audit.Publisher
 	if cfg.HasAudit() {
 		auditManager = audit.NewPublisher(sugar)
+		defer auditManager.Close()
+
 		if cfg.AuditFile != "" {
 			fileObserver, err := audit.NewFileObserver(sugar, cfg.AuditFile)
 			if err != nil {

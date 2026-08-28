@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ type Event struct {
 // Observer - Интерфейс наблюдателя
 type Observer interface {
 	Update(event Event)
+	Close() error
 }
 
 // Publisher - Менеджер аудита
@@ -53,4 +55,18 @@ func (p *Publisher) Notify(event Event) {
 	for _, obs := range p.observers {
 		obs.Update(event)
 	}
+}
+
+// Close Закрытие наблюдателей
+func (p *Publisher) Close() error {
+	errs := make([]error, len(p.observers))
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, o := range p.observers {
+		errs = append(errs, o.Close())
+	}
+
+	return errors.Join(errs...)
 }

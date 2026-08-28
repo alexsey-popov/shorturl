@@ -49,3 +49,8 @@ func (u *URLObserver) Update(event Event) {
 	}
 	defer resp.Body.Close()
 }
+
+// Закрытие наблюдателя
+func (u URLObserver) Close() error {
+	return nil
+}

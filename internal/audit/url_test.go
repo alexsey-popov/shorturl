@@ -30,6 +30,8 @@ func TestURLObserver(t *testing.T) {
 
 	l := zap.NewNop().Sugar()
 	obs := NewURLObserver(l, ts.URL)
+	defer obs.Close()
+
 	event := Event{
 		Timestamp: 12345678,
 		Action:    "follow",

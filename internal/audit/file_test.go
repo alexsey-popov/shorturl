@@ -23,6 +23,8 @@ func TestFileObserver(t *testing.T) {
 	l := zap.NewNop().Sugar()
 	f := filepath.Join(tmpDir, "audit.log")
 	obs, err := NewFileObserver(l, f)
+	defer obs.Close()
+
 	if err != nil {
 		t.Fatal(err)
 	}
