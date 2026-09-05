@@ -28,19 +28,30 @@ type Observer interface {
 
 // Publisher - Менеджер аудита
 type Publisher struct {
-	mu        sync.Mutex
-	observers []Observer
-	log       *zap.SugaredLogger
-	sem       chan struct{}
-	wg        sync.WaitGroup
+	mu       sync.Mutex
+	workers  []*observerWorker
+	log      *zap.SugaredLogger
+	wg       sync.WaitGroup
+	notifyWg sync.WaitGroup
+}
+
+type auditTask struct {
+	ctx   context.Context
+	event Event
+}
+
+type observerWorker struct {
+	observer Observer
+	eventCh  chan auditTask
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 // NewPublisher - Конструктор менеджера аудита
 func NewPublisher(l *zap.SugaredLogger) *Publisher {
 	return &Publisher{
-		observers: make([]Observer, 0),
-		log:       l,
-		sem:       make(chan struct{}, 10),
+		workers: make([]*observerWorker, 0),
+		log:     l,
 	}
 }
 
@@ -48,46 +59,71 @@ func NewPublisher(l *zap.SugaredLogger) *Publisher {
 func (p *Publisher) Register(obs Observer) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.observers = append(p.observers, obs)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	worker := &observerWorker{
+		observer: obs,
+		eventCh:  make(chan auditTask, 100),
+		ctx:      ctx,
+		cancel:   cancel,
+	}
+
+	p.wg.Add(1)
+	go func() {
+		defer p.wg.Done()
+		for task := range worker.eventCh {
+			worker.observer.Update(task.ctx, task.event)
+			p.notifyWg.Done()
+		}
+	}()
+
+	p.workers = append(p.workers, worker)
 }
 
 // Notify - Уведомление всех наблюдателей о событии
 func (p *Publisher) Notify(ctx context.Context, event Event) {
 	p.mu.Lock()
-	observers := make([]Observer, len(p.observers))
-	copy(observers, p.observers)
+	workers := make([]*observerWorker, len(p.workers))
+	copy(workers, p.workers)
 	p.mu.Unlock()
 
-	for _, obs := range observers {
-		if p.sem != nil {
-			p.sem <- struct{}{}
+	for _, w := range workers {
+		select {
+		case w.eventCh <- auditTask{ctx: ctx, event: event}:
+			p.notifyWg.Add(1)
+		default:
+			p.log.Info("Канал обработки данных аудита заполнен, запрос пропустил аудит")
 		}
-		p.wg.Add(1)
-		go func(o Observer) {
-			if p.sem != nil {
-				defer func() { <-p.sem }()
-			}
-			defer p.wg.Done()
-			o.Update(ctx, event)
-		}(obs)
 	}
 }
 
 // Wait - Ожидание завершения всех текущих уведомлений
 func (p *Publisher) Wait() {
-	p.wg.Wait()
+	p.notifyWg.Wait()
 }
 
 // Close Закрытие наблюдателей
 func (p *Publisher) Close() error {
-	p.wg.Wait()
-	errs := make([]error, len(p.observers))
+	p.notifyWg.Wait()
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	workers := make([]*observerWorker, len(p.workers))
+	copy(workers, p.workers)
+	p.mu.Unlock()
 
-	for _, o := range p.observers {
-		errs = append(errs, o.Close())
+	for _, w := range workers {
+		w.cancel()
+		close(w.eventCh)
+	}
+
+	p.wg.Wait()
+
+	errs := make([]error, 0, len(workers))
+
+	for _, w := range workers {
+		if err := w.observer.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return errors.Join(errs...)

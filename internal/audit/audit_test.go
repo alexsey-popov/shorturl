@@ -83,3 +83,62 @@ func TestPublisherConcurrency(t *testing.T) {
 		t.Fatalf("ожидалось %d событий, а получили: %d", totalEvents, len(o.events))
 	}
 }
+
+type blockingObserver struct {
+	mu     sync.Mutex
+	events []Event
+	block  chan struct{}
+}
+
+func (b *blockingObserver) Update(ctx context.Context, event Event) {
+	<-b.block
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.events = append(b.events, event)
+}
+
+func (b *blockingObserver) Close() error {
+	select {
+	case <-b.block:
+	default:
+		close(b.block)
+	}
+	return nil
+}
+
+func TestPublisherSlowObserver(t *testing.T) {
+	l := zap.NewNop().Sugar()
+	p := NewPublisher(l)
+	defer p.Close()
+
+	obs := &blockingObserver{
+		block: make(chan struct{}),
+	}
+	p.Register(obs)
+
+	// Buffer size is 100. Send 300 events while worker is blocked.
+	for i := 0; i < 300; i++ {
+		p.Notify(t.Context(), Event{
+			Timestamp: int64(i),
+			Action:    "test",
+			UserID:    "user",
+			URL:       "https://example.com",
+		})
+	}
+
+	// Unblock worker
+	close(obs.block)
+
+	// Wait for processing
+	p.Wait()
+
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
+
+	if len(obs.events) >= 300 {
+		t.Errorf("ожидалось отбрасывание событий при переполнении буфера, но получено все 300")
+	}
+	if len(obs.events) == 0 {
+		t.Errorf("ожидалось получение хотя бы части событий, но получено 0")
+	}
+}
