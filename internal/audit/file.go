@@ -45,15 +45,9 @@ func (f *FileObserver) Update(ctx context.Context, event Event) {
 
 	f.mu.Lock()
 	_, err = f.file.Write(data)
-	f.mu.Unlock()
-	if err != nil {
-		f.log.Errorf("ошибка при записи в файл: %v", err.Error())
-
-		return
+	if err == nil {
+		_, err = f.file.WriteString("\n")
 	}
-
-	f.mu.Lock()
-	_, err = f.file.WriteString("\n")
 	f.mu.Unlock()
 	if err != nil {
 		f.log.Errorf("ошибка при записи в файл: %v", err.Error())

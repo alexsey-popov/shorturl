@@ -38,7 +38,7 @@ func TestNewParsed(t *testing.T) {
 	// Повторный вызов должен вернуть исправленную singleton версию без ошибок
 	cfg, err = NewParsed()
 	assert.NoError(t, err)
-	assert.Equal(t, serverCfg, def)
+	assert.Equal(t, cfg, def)
 }
 
 // TestParse Тестирование парсинга конфига

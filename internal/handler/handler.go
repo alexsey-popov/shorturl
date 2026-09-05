@@ -248,6 +248,8 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
+		h.sugar.Error(err)
+
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -322,6 +324,8 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(responseItems)
 	if err != nil {
 		err = fmt.Errorf("ошибка при сериализации в json: %w", err)
+		h.sugar.Error(err)
+
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
