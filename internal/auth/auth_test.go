@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -74,7 +73,7 @@ func TestGetUserToken(t *testing.T) {
 
 // TestContextUser - Тестирование получения токена из контекста
 func TestContextUser(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	userID := "context-user-456"
 
 	_, ok := GetUserId(ctx)

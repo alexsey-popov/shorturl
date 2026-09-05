@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -37,7 +36,7 @@ func TestFileObserver(t *testing.T) {
 		URL:       "https://mylongdomain.com/my/long/path/to/shorten/",
 	}
 
-	obs.Update(context.Background(), e)
+	obs.Update(t.Context(), e)
 
 	c, err := os.ReadFile(f)
 	if err != nil {

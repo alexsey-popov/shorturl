@@ -42,7 +42,7 @@ func TestPublisher(t *testing.T) {
 		UserID:    "user123",
 		URL:       "https://example.com/long",
 	}
-	p.Notify(context.Background(), e)
+	p.Notify(t.Context(), e)
 	p.Wait()
 
 	o.mu.Lock()
@@ -67,7 +67,7 @@ func TestPublisherConcurrency(t *testing.T) {
 
 	const totalEvents = 50
 	for i := 0; i < totalEvents; i++ {
-		p.Notify(context.Background(), Event{
+		p.Notify(t.Context(), Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "test",
 			UserID:    "user",
