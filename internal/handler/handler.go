@@ -58,7 +58,7 @@ func NewHandler(
 
 // getUserID - Получаем id пользователя из контекста запроса
 func (h Handler) getUserID(r *http.Request) (userID string, ok bool) {
-	return auth.GetUserId(r.Context())
+	return auth.GetUserID(r.Context())
 }
 
 // HandleGet - Обработчик Get запроса
@@ -109,14 +109,14 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя
-	userId, ok := h.getUserID(r)
+	userID, ok := h.getUserID(r)
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := h.shortener.Add(string(originalURL), userId)
+	shortURL, err := h.shortener.Add(string(originalURL), userID)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -128,7 +128,7 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 					h.auditManager.Notify(context.TODO(), audit.Event{
 						Timestamp: time.Now().Unix(),
 						Action:    "shorten",
-						UserID:    userId,
+						UserID:    userID,
 						URL:       string(originalURL),
 					})
 				}
@@ -150,7 +150,7 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		h.auditManager.Notify(context.TODO(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "shorten",
-			UserID:    userId,
+			UserID:    userID,
 			URL:       string(originalURL),
 		})
 	}
@@ -186,14 +186,14 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя
-	userId, ok := h.getUserID(r)
+	userID, ok := h.getUserID(r)
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
 	// Получаем сокращённую ссылку
-	shortURL, err := h.shortener.Add(request.URL, userId)
+	shortURL, err := h.shortener.Add(request.URL, userID)
 	if err != nil {
 		// Если при добавлении сокр. ссылки мы получили ошибку - возможно это была ошибка уникальности
 		// и мы можем отдать пользователю уже существующую shortURL
@@ -212,7 +212,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 						h.auditManager.Notify(context.TODO(), audit.Event{
 							Timestamp: time.Now().Unix(),
 							Action:    "shorten",
-							UserID:    userId,
+							UserID:    userID,
 							URL:       request.URL,
 						})
 					}
@@ -235,7 +235,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		h.auditManager.Notify(context.TODO(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "shorten",
-			UserID:    userId,
+			UserID:    userID,
 			URL:       request.URL,
 		})
 	}
@@ -295,14 +295,14 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя
-	userId, ok := h.getUserID(r)
+	userID, ok := h.getUserID(r)
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
 	// Передаём слайс оригинальных ссылок на создание
-	mapURLs, err := h.shortener.AddMany(originalURLs, userId)
+	mapURLs, err := h.shortener.AddMany(originalURLs, userID)
 	if err != nil {
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -357,13 +357,13 @@ func (h Handler) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 // HandleGetUserURLs - обработчик для Get запроса api/user/urls (массовое создание ссылок)
 func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	// Получаем id пользователя
-	userId, ok := h.getUserID(r)
+	userID, ok := h.getUserID(r)
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
-	urls, err := h.shortener.Rep.FindFromUserID(userId)
+	urls, err := h.shortener.Rep.FindFromUserID(userID)
 	if err != nil {
 		h.sugar.Error(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -424,7 +424,7 @@ func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя
-	userId, ok := h.getUserID(r)
+	userID, ok := h.getUserID(r)
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
@@ -433,7 +433,7 @@ func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	// Отправляем задачу в канал для асинхронного удаления (fan-in паттерн)
 	go func() {
 		h.delCh <- DeleteTask{
-			UserID:   userId,
+			UserID:   userID,
 			Prefixes: prefixes,
 		}
 	}()

@@ -70,8 +70,8 @@ func (rep *InDB) SetMany(urls []model.URL) error {
 	return nil
 }
 
-// DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
-func (rep *InDB) DeleteManyFromUserId(prefixes []string, userID string) error {
+// DeleteManyFromUserID Массовое удаление ссылок принадлежащих пользователю
+func (rep *InDB) DeleteManyFromUserID(prefixes []string, userID string) error {
 	_, err := rep.db.Exec("UPDATE urls SET is_deleted = true WHERE user_id = $1 AND prefix IN (SELECT UNNEST($2::text[]))", userID, pq.Array(prefixes))
 	if err != nil {
 		err = fmt.Errorf("ошибка при массовом обновлении is_deleted в БД: %w", err)

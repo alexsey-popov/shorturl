@@ -111,7 +111,7 @@ func TestFindFromUserID(t *testing.T) {
 	})
 }
 
-func TestDeleteUserUrlFromPrefix(t *testing.T) {
+func TestDeleteUserURLFromPrefix(t *testing.T) {
 	rep := New()
 
 	url := model.URL{
@@ -123,12 +123,12 @@ func TestDeleteUserUrlFromPrefix(t *testing.T) {
 	require.NoError(t, rep.Set(url))
 
 	t.Run("wrong user id", func(t *testing.T) {
-		err := rep.DeleteUserUrlFromPrefix("pref1", "user-2")
+		err := rep.DeleteUserURLFromPrefix("pref1", "user-2")
 		assert.Error(t, err)
 	})
 
 	t.Run("success", func(t *testing.T) {
-		err := rep.DeleteUserUrlFromPrefix("pref1", "user-1")
+		err := rep.DeleteUserURLFromPrefix("pref1", "user-1")
 		assert.NoError(t, err)
 
 		got, err := rep.Get("pref1")
@@ -137,17 +137,17 @@ func TestDeleteUserUrlFromPrefix(t *testing.T) {
 	})
 
 	t.Run("already deleted", func(t *testing.T) {
-		err := rep.DeleteUserUrlFromPrefix("pref1", "user-1")
+		err := rep.DeleteUserURLFromPrefix("pref1", "user-1")
 		assert.Error(t, err)
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		err := rep.DeleteUserUrlFromPrefix("unknown", "user-1")
+		err := rep.DeleteUserURLFromPrefix("unknown", "user-1")
 		assert.ErrorIs(t, err, ErrURLNotFound)
 	})
 }
 
-func TestDeleteManyFromUserId(t *testing.T) {
+func TestDeleteManyFromUserID(t *testing.T) {
 	rep := New()
 
 	urls := []model.URL{
@@ -158,7 +158,7 @@ func TestDeleteManyFromUserId(t *testing.T) {
 	require.NoError(t, rep.SetMany(urls))
 
 	t.Run("batch delete success", func(t *testing.T) {
-		err := rep.DeleteManyFromUserId([]string{"pref1", "pref2"}, "user-1")
+		err := rep.DeleteManyFromUserID([]string{"pref1", "pref2"}, "user-1")
 		assert.NoError(t, err)
 
 		got1, _ := rep.Get("pref1")
@@ -169,7 +169,7 @@ func TestDeleteManyFromUserId(t *testing.T) {
 
 	t.Run("batch delete with error (wrong user)", func(t *testing.T) {
 		// pref3 belongs to user-2, trying to delete as user-1
-		err := rep.DeleteManyFromUserId([]string{"pref3"}, "user-1")
+		err := rep.DeleteManyFromUserID([]string{"pref3"}, "user-1")
 		assert.Error(t, err)
 	})
 }

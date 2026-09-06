@@ -26,7 +26,7 @@ func ExampleNewHandler() {
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
 	req.Header.Set("Content-Type", contentType.Plain)
-	req = req.WithContext(auth.SetUserId(req.Context(), uuid.NewString()))
+	req = req.WithContext(auth.SetUserID(req.Context(), uuid.NewString()))
 
 	rec := httptest.NewRecorder()
 	h.HandlePost(rec, req)
@@ -54,7 +54,7 @@ func ExampleHandler_HandlePostJSON() {
 	reqBody := `{"url":"https://example.com/json"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", contentType.JSON)
-	req = req.WithContext(auth.SetUserId(req.Context(), uuid.NewString()))
+	req = req.WithContext(auth.SetUserID(req.Context(), uuid.NewString()))
 
 	rec := httptest.NewRecorder()
 	h.HandlePostJSON(rec, req)

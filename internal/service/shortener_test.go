@@ -54,7 +54,7 @@ func (m *mockRepository) FindFromOriginal(originalURL string) (model.URL, error)
 	return model.URL{}, nil
 }
 
-func (m *mockRepository) DeleteManyFromUserId(prefixes []string, userID string) error {
+func (m *mockRepository) DeleteManyFromUserID(prefixes []string, userID string) error {
 	if m.deleteManyFunc != nil {
 		return m.deleteManyFunc(prefixes, userID)
 	}

@@ -15,7 +15,7 @@ import (
 const testSecret = "test-secret-key"
 
 // TestNewUserToken - Тестирование NewUserToken
-func TestGetUserId(t *testing.T) {
+func TestGetUserID(t *testing.T) {
 	userID := "user-123"
 	tokenExp := time.Hour
 
@@ -76,11 +76,11 @@ func TestContextUser(t *testing.T) {
 	ctx := t.Context()
 	userID := "context-user-456"
 
-	_, ok := GetUserId(ctx)
+	_, ok := GetUserID(ctx)
 	assert.False(t, ok)
 
-	ctx = SetUserId(ctx, userID)
-	retrievedID, ok := GetUserId(ctx)
+	ctx = SetUserID(ctx, userID)
+	retrievedID, ok := GetUserID(ctx)
 	assert.True(t, ok)
 	assert.Equal(t, userID, retrievedID)
 }
@@ -91,7 +91,7 @@ func TestNewHTTPMiddleware(t *testing.T) {
 	middleware := NewHTTPMiddleware(testSecret, time.Hour, sugar)
 
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := GetUserId(r.Context())
+		userID, ok := GetUserID(r.Context())
 		assert.True(t, ok)
 		assert.NotEmpty(t, userID)
 		w.WriteHeader(http.StatusOK)

@@ -100,7 +100,7 @@ func TestHandlePost(t *testing.T) {
 			r.Header.Set("Content-Type", tt.contentType)
 
 			// Прокидываем id пользователя в контекст
-			ctx := auth.SetUserId(r.Context(), uuid.NewString())
+			ctx := auth.SetUserID(r.Context(), uuid.NewString())
 			r = r.WithContext(ctx)
 
 			w := httptest.NewRecorder()
@@ -190,7 +190,7 @@ func TestHandlePostJson(t *testing.T) {
 			r.Header.Set("Content-Type", tt.contentType)
 
 			// Прокидываем id пользователя в контекст
-			ctx := auth.SetUserId(r.Context(), uuid.NewString())
+			ctx := auth.SetUserID(r.Context(), uuid.NewString())
 			r = r.WithContext(ctx)
 
 			w := httptest.NewRecorder()
@@ -312,7 +312,7 @@ func TestHandlerAudit(t *testing.T) {
 	// 1. Test POST /
 	r1 := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/test1"))
 	r1.Header.Set("Content-Type", contentType.Plain)
-	ctx1 := auth.SetUserId(r1.Context(), "user1")
+	ctx1 := auth.SetUserID(r1.Context(), "user1")
 	r1 = r1.WithContext(ctx1)
 	w1 := httptest.NewRecorder()
 	h.HandlePost(w1, r1)
@@ -320,7 +320,7 @@ func TestHandlerAudit(t *testing.T) {
 	// 2. Test POST /api/shorten
 	r2 := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(`{"url":"https://example.com/test2"}`))
 	r2.Header.Set("Content-Type", contentType.JSON)
-	ctx2 := auth.SetUserId(r2.Context(), "user1")
+	ctx2 := auth.SetUserID(r2.Context(), "user1")
 	r2 = r2.WithContext(ctx2)
 	w2 := httptest.NewRecorder()
 	h.HandlePostJSON(w2, r2)
@@ -402,7 +402,7 @@ func TestHandlePostBatch(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
 		r.Header.Set("Content-Type", contentType.JSON)
-		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -419,7 +419,7 @@ func TestHandlePostBatch(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
 		r.Header.Set("Content-Type", contentType.Plain)
-		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -435,7 +435,7 @@ func TestHandlePostBatch(t *testing.T) {
 		body := `invalid-json`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
 		r.Header.Set("Content-Type", contentType.JSON)
-		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -451,7 +451,7 @@ func TestHandlePostBatch(t *testing.T) {
 		body := `[]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
 		r.Header.Set("Content-Type", contentType.JSON)
-		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -481,7 +481,7 @@ func TestHandlePostBatch(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "not-a-url"}]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
 		r.Header.Set("Content-Type", contentType.JSON)
-		ctx := auth.SetUserId(r.Context(), uuid.NewString())
+		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -557,7 +557,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
-		ctx := auth.SetUserId(r.Context(), userID)
+		ctx := auth.SetUserID(r.Context(), userID)
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -574,7 +574,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
-		ctx := auth.SetUserId(r.Context(), userID)
+		ctx := auth.SetUserID(r.Context(), userID)
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -610,7 +610,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 		h := NewHandler(zap.S(), shortener, nil, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
-		ctx := auth.SetUserId(r.Context(), userID)
+		ctx := auth.SetUserID(r.Context(), userID)
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -633,7 +633,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 
 		body := `["pref1", "pref2"]`
 		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
-		ctx := auth.SetUserId(r.Context(), userID)
+		ctx := auth.SetUserID(r.Context(), userID)
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -658,7 +658,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 
 		body := `[]`
 		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
-		ctx := auth.SetUserId(r.Context(), userID)
+		ctx := auth.SetUserID(r.Context(), userID)
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
@@ -689,7 +689,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 
 		body := `invalid-json`
 		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
-		ctx := auth.SetUserId(r.Context(), userID)
+		ctx := auth.SetUserID(r.Context(), userID)
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()

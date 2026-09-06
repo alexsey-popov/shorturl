@@ -107,10 +107,10 @@ func (rep *InFile) FindFromUserID(userID string) ([]model.URL, error) {
 	return rep.data.FindFromUserID(userID)
 }
 
-// DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
-func (rep *InFile) DeleteManyFromUserId(prefixes []string, userID string) error {
+// DeleteManyFromUserID Массовое удаление ссылок принадлежащих пользователю
+func (rep *InFile) DeleteManyFromUserID(prefixes []string, userID string) error {
 	// Удаляем в памяти
-	if err := rep.data.DeleteManyFromUserId(prefixes, userID); err != nil {
+	if err := rep.data.DeleteManyFromUserID(prefixes, userID); err != nil {
 		return err
 	}
 

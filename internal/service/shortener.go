@@ -23,8 +23,8 @@ type Repository interface {
 	FindFromUserID(userID string) (urls []model.URL, err error)
 	// FindFromOriginal - Поиск значений по значению originalURL
 	FindFromOriginal(originalURL string) (url model.URL, err error)
-	// DeleteManyFromUserId - Массовое удаление ссылок принадлежащих пользователю
-	DeleteManyFromUserId(prefixes []string, userID string) error
+	// DeleteManyFromUserID - Массовое удаление ссылок принадлежащих пользователю
+	DeleteManyFromUserID(prefixes []string, userID string) error
 	// Ping - Проверка соединения
 	Ping() error
 }

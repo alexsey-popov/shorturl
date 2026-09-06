@@ -174,7 +174,7 @@ func startDeleteWorkers(
 			defer wg.Done()
 
 			for task := range delCh {
-				err := shortener.Rep.DeleteManyFromUserId(task.Prefixes, task.UserID)
+				err := shortener.Rep.DeleteManyFromUserID(task.Prefixes, task.UserID)
 				if err != nil {
 					logger.Errorf("ошибка при удалении ссылок: %v", err)
 				}

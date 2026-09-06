@@ -170,7 +170,7 @@ func TestSetMany(t *testing.T) {
 	})
 }
 
-func TestDeleteManyFromUserId(t *testing.T) {
+func TestDeleteManyFromUserID(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
@@ -184,7 +184,7 @@ func TestDeleteManyFromUserId(t *testing.T) {
 			WithArgs(userID, sqlmock.AnyArg()).
 			WillReturnResult(sqlmock.NewResult(0, 2))
 
-		err := rep.DeleteManyFromUserId(prefixes, userID)
+		err := rep.DeleteManyFromUserID(prefixes, userID)
 		assert.NoError(t, err)
 	})
 
@@ -193,7 +193,7 @@ func TestDeleteManyFromUserId(t *testing.T) {
 			WithArgs(userID, sqlmock.AnyArg()).
 			WillReturnError(errors.New("update error"))
 
-		err := rep.DeleteManyFromUserId(prefixes, userID)
+		err := rep.DeleteManyFromUserID(prefixes, userID)
 		assert.Error(t, err)
 	})
 }

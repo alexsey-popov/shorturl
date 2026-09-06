@@ -167,7 +167,7 @@ func TestFindMethods(t *testing.T) {
 	})
 }
 
-func TestDeleteManyFromUserId(t *testing.T) {
+func TestDeleteManyFromUserID(t *testing.T) {
 	tmpDir := t.TempDir()
 	filename := filepath.Join(tmpDir, "test.json")
 	rep, err := New(filename)
@@ -178,7 +178,7 @@ func TestDeleteManyFromUserId(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		err := rep.DeleteManyFromUserId([]string{"pref1"}, "user-1")
+		err := rep.DeleteManyFromUserID([]string{"pref1"}, "user-1")
 		assert.NoError(t, err)
 
 		got, err := rep.Get("pref1")

@@ -50,8 +50,8 @@ func (rep *InMemory) SetMany(urls []model.URL) error {
 	return nil
 }
 
-// DeleteManyFromUserId Массовое удаление ссылок принадлежащих пользователю
-func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) error {
+// DeleteManyFromUserID Массовое удаление ссылок принадлежащих пользователю
+func (rep *InMemory) DeleteManyFromUserID(prefixes []string, userID string) error {
 	//Получаем канал с префиксами через генератор
 	inCh := func(prefixes []string) chan string {
 		outCh := make(chan string)
@@ -75,7 +75,7 @@ func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) erro
 			go func() {
 				defer close(outCh)
 				for prefix := range inCh {
-					if err := rep.DeleteUserUrlFromPrefix(prefix, userID); err != nil {
+					if err := rep.DeleteUserURLFromPrefix(prefix, userID); err != nil {
 						outCh <- fmt.Errorf("%s: %w", prefix, err)
 						continue
 					}
@@ -98,8 +98,8 @@ func (rep *InMemory) DeleteManyFromUserId(prefixes []string, userID string) erro
 	return resErr
 }
 
-// DeleteUserUrlFromPrefix - удаление пользовательской ссылки по префиксу (с проверкой на принадлежность пользователю)
-func (rep *InMemory) DeleteUserUrlFromPrefix(prefix, userID string) error {
+// DeleteUserURLFromPrefix - удаление пользовательской ссылки по префиксу (с проверкой на принадлежность пользователю)
+func (rep *InMemory) DeleteUserURLFromPrefix(prefix, userID string) error {
 	// Ищем ссылку
 	url, err := rep.Get(prefix)
 	if err != nil {
