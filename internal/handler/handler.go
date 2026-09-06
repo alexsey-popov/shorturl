@@ -12,7 +12,7 @@ import (
 	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/service"
-	"github.com/alexsey-popov/shorturl/pkg/contentType"
+	"github.com/alexsey-popov/shorturl/pkg/contenttype"
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -94,7 +94,7 @@ func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 // HandlePost - Обработчик Post запроса
 func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
-	if r.Header.Get("Content-Type") != contentType.Plain {
+	if r.Header.Get("Content-Type") != contenttype.Plain {
 		h.sugar.Error(ErrInvalidContentType)
 		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
@@ -133,7 +133,7 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 					})
 				}
 
-				w.Header().Set("Content-Type", contentType.Plain)
+				w.Header().Set("Content-Type", contenttype.Plain)
 				w.WriteHeader(http.StatusConflict)
 				w.Write([]byte(diffShortURL))
 
@@ -155,7 +155,7 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Header().Set("Content-Type", contentType.Plain)
+	w.Header().Set("Content-Type", contenttype.Plain)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
 }
@@ -163,7 +163,7 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 // HandlePostJSON - Обработчик для запроса Post /api/shorten
 func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
-	if r.Header.Get("Content-Type") != contentType.JSON {
+	if r.Header.Get("Content-Type") != contenttype.JSON {
 		h.sugar.Error(ErrInvalidContentType)
 		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
@@ -217,7 +217,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 						})
 					}
 
-					w.Header().Set("Content-Type", contentType.JSON)
+					w.Header().Set("Content-Type", contenttype.JSON)
 					w.WriteHeader(http.StatusConflict)
 					w.Write(responseJSON)
 
@@ -254,7 +254,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", contentType.JSON)
+	w.Header().Set("Content-Type", contenttype.JSON)
 	w.WriteHeader(http.StatusCreated)
 	w.Write(responseJSON)
 }
@@ -262,7 +262,7 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 // HandlePostBatch - Обработчик для запроса Post /api/shorten/batch (массовое создание)
 func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 	// Некорректный content-type - ошибка
-	if r.Header.Get("Content-Type") != contentType.JSON {
+	if r.Header.Get("Content-Type") != contenttype.JSON {
 		h.sugar.Error(ErrInvalidContentType)
 		http.Error(w, ErrInvalidContentType.Error(), http.StatusBadRequest)
 		return
@@ -330,14 +330,14 @@ func (h Handler) HandlePostBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", contentType.JSON)
+	w.Header().Set("Content-Type", contenttype.JSON)
 	w.WriteHeader(http.StatusCreated)
 	w.Write(response)
 }
 
 // HandleFails - обработчик для ошибочных запросов
 func (h Handler) HandleFails(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", contentType.Plain)
+	w.Header().Set("Content-Type", contenttype.Plain)
 	http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 }
 
@@ -405,7 +405,7 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", contentType.JSON)
+	w.Header().Set("Content-Type", contenttype.JSON)
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
 }

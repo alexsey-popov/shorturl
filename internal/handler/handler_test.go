@@ -17,7 +17,7 @@ import (
 	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/alexsey-popov/shorturl/internal/repository/inmemory"
 	"github.com/alexsey-popov/shorturl/internal/service"
-	"github.com/alexsey-popov/shorturl/pkg/contentType"
+	"github.com/alexsey-popov/shorturl/pkg/contenttype"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -41,31 +41,31 @@ func TestHandlePost(t *testing.T) {
 		{
 			name:        "positive #1",
 			target:      "/",
-			contentType: contentType.Plain,
+			contentType: contenttype.Plain,
 			body:        "https://example.com/positive-1",
 			want: want{
 				statusCode:  http.StatusCreated,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 		{
 			name:        "negative #1 - incorrect url",
 			target:      "/",
-			contentType: contentType.Plain,
+			contentType: contenttype.Plain,
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusInternalServerError,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 		{
 			name:        "negative #2 - empty body",
 			target:      "/",
-			contentType: contentType.Plain,
+			contentType: contenttype.Plain,
 			body:        "",
 			want: want{
 				statusCode:  http.StatusInternalServerError,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 		{
@@ -75,7 +75,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestHandlePost(t *testing.T) {
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 	}
@@ -145,41 +145,41 @@ func TestHandlePostJson(t *testing.T) {
 		{
 			name:        "positive #1",
 			target:      "/api/shorten",
-			contentType: contentType.JSON,
+			contentType: contenttype.JSON,
 			body:        `{"url": "https://example.com/positive-1"}`,
 			want: want{
 				statusCode:  http.StatusCreated,
-				contentType: contentType.JSON,
+				contentType: contenttype.JSON,
 			},
 		},
 		{
 			name:        "negative #1 - incorrect url",
 			target:      "/api/shorten",
-			contentType: contentType.JSON,
+			contentType: contenttype.JSON,
 			body:        `{"url": "incorrect-url"}`,
 			want: want{
 				statusCode:  http.StatusInternalServerError,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 		{
 			name:        "negative #2 - empty body",
 			target:      "/api/shorten",
-			contentType: contentType.JSON,
+			contentType: contenttype.JSON,
 			body:        "",
 			want: want{
 				statusCode:  http.StatusInternalServerError,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 		{
 			name:        "negative #3 - incorrect Content-type",
 			target:      "/api/shorten",
-			contentType: contentType.Plain,
+			contentType: contenttype.Plain,
 			body:        "incorrect url",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				contentType: contentType.Plain,
+				contentType: contenttype.Plain,
 			},
 		},
 	}
@@ -311,7 +311,7 @@ func TestHandlerAudit(t *testing.T) {
 
 	// 1. Test POST /
 	r1 := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/test1"))
-	r1.Header.Set("Content-Type", contentType.Plain)
+	r1.Header.Set("Content-Type", contenttype.Plain)
 	ctx1 := auth.SetUserID(r1.Context(), "user1")
 	r1 = r1.WithContext(ctx1)
 	w1 := httptest.NewRecorder()
@@ -319,7 +319,7 @@ func TestHandlerAudit(t *testing.T) {
 
 	// 2. Test POST /api/shorten
 	r2 := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(`{"url":"https://example.com/test2"}`))
-	r2.Header.Set("Content-Type", contentType.JSON)
+	r2.Header.Set("Content-Type", contenttype.JSON)
 	ctx2 := auth.SetUserID(r2.Context(), "user1")
 	r2 = r2.WithContext(ctx2)
 	w2 := httptest.NewRecorder()
@@ -401,7 +401,7 @@ func TestHandlePostBatch(t *testing.T) {
 	t.Run("positive #1", func(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
-		r.Header.Set("Content-Type", contentType.JSON)
+		r.Header.Set("Content-Type", contenttype.JSON)
 		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
@@ -412,13 +412,13 @@ func TestHandlePostBatch(t *testing.T) {
 		defer res.Body.Close()
 
 		assert.Equal(t, http.StatusCreated, res.StatusCode)
-		assert.Contains(t, res.Header.Get("Content-Type"), contentType.JSON)
+		assert.Contains(t, res.Header.Get("Content-Type"), contenttype.JSON)
 	})
 
 	t.Run("negative #1 - invalid content-type", func(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
-		r.Header.Set("Content-Type", contentType.Plain)
+		r.Header.Set("Content-Type", contenttype.Plain)
 		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
@@ -434,7 +434,7 @@ func TestHandlePostBatch(t *testing.T) {
 	t.Run("negative #2 - invalid json", func(t *testing.T) {
 		body := `invalid-json`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
-		r.Header.Set("Content-Type", contentType.JSON)
+		r.Header.Set("Content-Type", contenttype.JSON)
 		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
@@ -450,7 +450,7 @@ func TestHandlePostBatch(t *testing.T) {
 	t.Run("negative #3 - empty batch", func(t *testing.T) {
 		body := `[]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
-		r.Header.Set("Content-Type", contentType.JSON)
+		r.Header.Set("Content-Type", contenttype.JSON)
 		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
@@ -466,7 +466,7 @@ func TestHandlePostBatch(t *testing.T) {
 	t.Run("negative #4 - unauthorized", func(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
-		r.Header.Set("Content-Type", contentType.JSON)
+		r.Header.Set("Content-Type", contenttype.JSON)
 
 		w := httptest.NewRecorder()
 		h.HandlePostBatch(w, r)
@@ -480,7 +480,7 @@ func TestHandlePostBatch(t *testing.T) {
 	t.Run("negative #5 - invalid url in batch", func(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "not-a-url"}]`
 		r := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(body))
-		r.Header.Set("Content-Type", contentType.JSON)
+		r.Header.Set("Content-Type", contenttype.JSON)
 		ctx := auth.SetUserID(r.Context(), uuid.NewString())
 		r = r.WithContext(ctx)
 
@@ -507,7 +507,7 @@ func TestHandleFails(t *testing.T) {
 	defer res.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
-	assert.Contains(t, res.Header.Get("Content-Type"), contentType.Plain)
+	assert.Contains(t, res.Header.Get("Content-Type"), contenttype.Plain)
 }
 
 func TestHandleGetPing(t *testing.T) {
@@ -567,7 +567,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 		defer res.Body.Close()
 
 		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Contains(t, res.Header.Get("Content-Type"), contentType.JSON)
+		assert.Contains(t, res.Header.Get("Content-Type"), contenttype.JSON)
 	})
 
 	t.Run("positive - no urls (204)", func(t *testing.T) {
@@ -708,7 +708,7 @@ func BenchmarkHandlePost(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/benchmark"))
-		r.Header.Set("Content-Type", contentType.Plain)
+		r.Header.Set("Content-Type", contenttype.Plain)
 		w := httptest.NewRecorder()
 		h.HandlePost(w, r)
 	}
@@ -748,7 +748,7 @@ func BenchmarkHandlePostParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/"+uuid.NewString()))
-			r.Header.Set("Content-Type", contentType.Plain)
+			r.Header.Set("Content-Type", contenttype.Plain)
 			w := httptest.NewRecorder()
 			h.HandlePost(w, r)
 		}

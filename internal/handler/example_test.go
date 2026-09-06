@@ -11,7 +11,7 @@ import (
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/handler"
 	"github.com/alexsey-popov/shorturl/internal/service"
-	"github.com/alexsey-popov/shorturl/pkg/contentType"
+	"github.com/alexsey-popov/shorturl/pkg/contenttype"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -25,7 +25,7 @@ func ExampleNewHandler() {
 	h := handler.NewHandler(logger, shortener, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
-	req.Header.Set("Content-Type", contentType.Plain)
+	req.Header.Set("Content-Type", contenttype.Plain)
 	req = req.WithContext(auth.SetUserID(req.Context(), uuid.NewString()))
 
 	rec := httptest.NewRecorder()
@@ -53,7 +53,7 @@ func ExampleHandler_HandlePostJSON() {
 
 	reqBody := `{"url":"https://example.com/json"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(reqBody))
-	req.Header.Set("Content-Type", contentType.JSON)
+	req.Header.Set("Content-Type", contenttype.JSON)
 	req = req.WithContext(auth.SetUserID(req.Context(), uuid.NewString()))
 
 	rec := httptest.NewRecorder()
