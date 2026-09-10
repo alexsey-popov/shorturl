@@ -15,8 +15,8 @@ import (
 // ctxKey - Специальный тип для использования в контексте
 type ctxKey string
 
-// userIdKey - константа для извлечения id пользователя
-const userIdKey ctxKey = "user_id"
+// userIDKey - константа для извлечения id пользователя
+const userIDKey ctxKey = "user_id"
 
 // UserToken - Токен аутентификации пользователя
 type UserToken struct {
@@ -106,14 +106,14 @@ func jwtKeyFunc(secret string) func(t *jwt.Token) (interface{}, error) {
 	}
 }
 
-// SetUserId - Добавление id пользователя в контекст
-func SetUserId(ctx context.Context, key string) context.Context {
-	return context.WithValue(ctx, userIdKey, key)
+// SetUserID - Добавление id пользователя в контекст
+func SetUserID(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, userIDKey, key)
 }
 
-// GetUserId - Извлечение user_id из контекста
-func GetUserId(ctx context.Context) (string, bool) {
-	user, ok := ctx.Value(userIdKey).(string)
+// GetUserID - Извлечение user_id из контекста
+func GetUserID(ctx context.Context) (string, bool) {
+	user, ok := ctx.Value(userIDKey).(string)
 	return user, ok
 }
 
@@ -168,7 +168,7 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 			}
 
 			// Добавляем id пользователя в контекст
-			ctx := SetUserId(r.Context(), ut.UserID)
+			ctx := SetUserID(r.Context(), ut.UserID)
 
 			h.ServeHTTP(w, r.WithContext(ctx))
 

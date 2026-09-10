@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
+	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/compact"
 	"github.com/alexsey-popov/shorturl/internal/config"
@@ -32,8 +34,9 @@ func main() {
 	sugar := l.Sugar()
 
 	// Парсим конфиг значениями из флагов и переменных окружения
-	if err = config.Parse(); err != nil {
-		sugar.Fatal(err)
+	cfg, err := config.NewParsed()
+	if err != nil {
+		sugar.Fatalf("ошибка при пирсинге конфига: %v", err.Error())
 	}
 
 	// Объект сокращателя ссылок
@@ -42,20 +45,20 @@ func main() {
 	// Пытаемся подключить различные виды хранилищ (по умолчанию используется хранение в памяти)
 	switch {
 	// Если указаны данные для подключения в БД - используем БД
-	case config.Server.DSN != "":
+	case cfg.DSN != "":
 		// Создаём объект взаимодействия с базой
-		db, err := connectDB(config.Server.DSN)
+		db, err := connectDB(cfg.DSN)
 		if err != nil {
-			sugar.Fatal(err)
+			sugar.Fatalf("ошибка при подключении к БД :%v", err.Error())
 		}
 		defer db.Close()
 
-		shortener = service.NewDBShortener(config.Server.BaseURL, db)
+		shortener = service.NewDBShortener(cfg.BaseURL, db)
 
 		sugar.Infoln("В качестве хранилища используется БД")
 	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
-	case config.Server.FilePath != "":
-		shortener, err = service.NewFileShortener(config.Server.BaseURL, config.Server.FilePath)
+	case cfg.FilePath != "":
+		shortener, err = service.NewFileShortener(cfg.BaseURL, cfg.FilePath)
 		if err != nil {
 			sugar.Fatal(err)
 		}
@@ -64,16 +67,38 @@ func main() {
 	default:
 		sugar.Infoln("В качестве хранилища используется ОЗУ")
 
-		shortener = service.NewMemoryShortener(config.Server.BaseURL)
+		shortener = service.NewMemoryShortener(cfg.BaseURL)
 	}
 
 	// Создаём канал для асинхронного удаления ссылок
 	delCh := make(chan handler.DeleteTask, 100)
+	var delWG sync.WaitGroup
 	// Запускаем воркеры для удаления ссылок
-	startDeleteWorkers(10, delCh, shortener, sugar)
+	startDeleteWorkers(10, delCh, &delWG, shortener, sugar)
+
+	// Создаём наблюдатель для аудита
+	var auditManager *audit.Publisher
+	if cfg.HasAudit() {
+		auditManager = audit.NewPublisher(sugar)
+		defer auditManager.Close()
+
+		if cfg.AuditFile != "" {
+			fileObserver, err := audit.NewFileObserver(sugar, cfg.AuditFile)
+			if err != nil {
+				sugar.Fatalf("ошибка при создании наблюдателя файла аудита: %v", err)
+			}
+			auditManager.Register(fileObserver)
+			sugar.Infoln("Аудит в файл включен")
+		}
+		if cfg.AuditURL != "" {
+			urlObserver := audit.NewURLObserver(sugar, cfg.AuditURL)
+			auditManager.Register(urlObserver)
+			sugar.Infoln("Аудит по URL включен")
+		}
+	}
 
 	// Создаём объект обработчика запросов
-	h := handler.NewHandler(sugar, shortener, delCh)
+	h := handler.NewHandler(sugar, shortener, delCh, auditManager)
 
 	// Объявляем роуты
 	r := chi.NewRouter()
@@ -85,7 +110,7 @@ func main() {
 	r.Use(compact.HTTPMiddleware(sugar))
 
 	// Аутентифицируем пользователя
-	r.Use(auth.NewHTTPMiddleware(config.Server.SecretKey, config.Server.TokenExp, sugar))
+	r.Use(auth.NewHTTPMiddleware(cfg.SecretKey, cfg.TokenExp, sugar))
 
 	r.Post("/", h.HandlePost)
 	r.Post("/api/shorten/batch", h.HandlePostBatch)
@@ -97,7 +122,7 @@ func main() {
 	r.MethodNotAllowed(h.HandleFails)
 
 	// Поднимает сервер
-	err = http.ListenAndServe(config.Server.NetAddress, r)
+	err = http.ListenAndServe(cfg.NetAddress, r)
 	if err != nil {
 		sugar.Fatalf("ошибка в работе сервера: %v", err)
 	}
@@ -136,11 +161,20 @@ func connectDB(serverDSN string) (*sql.DB, error) {
 }
 
 // startDeleteWorkers - Запуск воркер-пула для удаления ссылок
-func startDeleteWorkers(num int, delCh <-chan handler.DeleteTask, shortener service.Shortener, logger *zap.SugaredLogger) {
+func startDeleteWorkers(
+	num int,
+	delCh <-chan handler.DeleteTask,
+	wg *sync.WaitGroup,
+	shortener service.Shortener,
+	logger *zap.SugaredLogger,
+) {
 	for i := 0; i < num; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
+
 			for task := range delCh {
-				err := shortener.Rep.DeleteManyFromUserId(task.Prefixes, task.UserID)
+				err := shortener.Rep.DeleteManyFromUserID(task.Prefixes, task.UserID)
 				if err != nil {
 					logger.Errorf("ошибка при удалении ссылок: %v", err)
 				}

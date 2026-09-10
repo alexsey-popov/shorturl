@@ -1,4 +1,4 @@
-package contentType
+package contenttype
 
 // Content-Type заголовки
 const (
