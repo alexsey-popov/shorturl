@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	singlechecker.Main(ForbittenExprAnalyzer)
+	singlechecker.Main(ForbiddenExprAnalyzer)
 }

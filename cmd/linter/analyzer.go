@@ -7,14 +7,14 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// ForbittenExprAnalyzer - Анализатор запрещенных выражений
-var ForbittenExprAnalyzer = &analysis.Analyzer{
+// ForbiddenExprAnalyzer - Анализатор запрещенных выражений
+var ForbiddenExprAnalyzer = &analysis.Analyzer{
 	Name: "forbittenexpr",
 	Doc:  "Проверка отсутствия функции panic в любом пакете и методов os.Exit или log.Fatal за пределами функции main пакета main",
 	Run:  run,
 }
 
-// run - Функция проверки АСТ для ForbittenExprAnalyzer
+// run - Функция проверки АСТ для ForbiddenExprAnalyzer
 func run(pass *analysis.Pass) (interface{}, error) {
 	// Список запрещенных выражений
 	forbittenExpr := []string{

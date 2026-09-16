@@ -7,5 +7,5 @@ import (
 )
 
 func TestMyAnalyzer(t *testing.T) {
-	analysistest.Run(t, analysistest.TestData(), ForbittenExprAnalyzer, "./...")
+	analysistest.Run(t, analysistest.TestData(), ForbiddenExprAnalyzer, "./...")
 }
