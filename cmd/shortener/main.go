@@ -24,6 +24,12 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+)
+
 func main() {
 	// Создаём логгер
 	l, err := zap.NewDevelopment()
@@ -32,6 +38,10 @@ func main() {
 	}
 	defer l.Sync()
 	sugar := l.Sugar()
+
+	sugar.Infof("Build version: %s", buildVersion)
+	sugar.Infof("Build date: %s", buildDate)
+	sugar.Infof("Build commit: %s", buildCommit)
 
 	// Парсим конфиг значениями из флагов и переменных окружения
 	cfg, err := config.NewParsed()
