@@ -9,7 +9,7 @@ import (
 
 // ForbiddenExprAnalyzer - Анализатор запрещенных выражений
 var ForbiddenExprAnalyzer = &analysis.Analyzer{
-	Name: "forbittenexpr",
+	Name: "forbiddenexpr",
 	Doc:  "Проверка отсутствия функции panic в любом пакете и методов os.Exit или log.Fatal за пределами функции main пакета main",
 	Run:  run,
 }
@@ -17,7 +17,7 @@ var ForbiddenExprAnalyzer = &analysis.Analyzer{
 // run - Функция проверки АСТ для ForbiddenExprAnalyzer
 func run(pass *analysis.Pass) (interface{}, error) {
 	// Список запрещенных выражений
-	forbittenExpr := []string{
+	forbiddenExpr := []string{
 		"log.Fatal",
 		"os.Exit",
 	}
@@ -38,7 +38,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		// Склеиваем имя метода и имя пакета/переменной и сличаем со списком запрещённых вызовов
-		if expr := ident.Name + "." + selExpr.Sel.Name; slices.Contains(forbittenExpr, expr) {
+		if expr := ident.Name + "." + selExpr.Sel.Name; slices.Contains(forbiddenExpr, expr) {
 			pass.Reportf(ident.Pos(), "найден вызов запрещённого метода %s", expr)
 		}
 	}
