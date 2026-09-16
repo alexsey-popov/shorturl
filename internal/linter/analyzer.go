@@ -2,6 +2,7 @@ package linter
 
 import (
 	"go/ast"
+	"go/types"
 	"slices"
 
 	"golang.org/x/tools/go/analysis"
@@ -24,30 +25,38 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	// Проверка отсутствия методов выхода из программы (os.Exit || log.Fatal)
 	findForbiddenMethod := func(x *ast.CallExpr) {
-		// Проверяем, что выражение является методом, а не функцией
 		selExpr, ok := x.Fun.(*ast.SelectorExpr)
 		if !ok {
 			return
 		}
 
-		// Проверяем, что метод вызывается у пакета/переменной, а не у метода
-		// Например в a.b.method() параметр selExpr.X будет равен ast.SelectorExpr, а не ast.Ident
-		ident, ok := selExpr.X.(*ast.Ident)
+		obj := pass.TypesInfo.Uses[selExpr.Sel]
+		if obj == nil {
+			return
+		}
+
+		fn, ok := obj.(*types.Func)
 		if !ok {
 			return
 		}
 
-		// Склеиваем имя метода и имя пакета/переменной и сличаем со списком запрещённых вызовов
-		if expr := ident.Name + "." + selExpr.Sel.Name; slices.Contains(forbiddenExpr, expr) {
-			pass.Reportf(ident.Pos(), "найден вызов запрещённого метода %s", expr)
+		if fullName := fn.FullName(); slices.Contains(forbiddenExpr, fullName) {
+			pass.Reportf(selExpr.Pos(), "найден вызов запрещённого метода %s", fullName)
 		}
 	}
 
 	findPanic := func(x *ast.CallExpr) {
-		// Нам нужно отличить метод panic от функции, поэтому пытаемся преобразовать объект к типу Ident
-		// (метод не сможет прийти к этому типу)
 		ident, ok := x.Fun.(*ast.Ident)
-		if ok && ident.Name == "panic" {
+		if !ok {
+			return
+		}
+
+		obj := pass.TypesInfo.Uses[ident]
+		if obj == nil {
+			return
+		}
+
+		if builtin, ok := obj.(*types.Builtin); ok && builtin.Name() == "panic" {
 			pass.Reportf(ident.Pos(), "найден ручной вызов паники")
 		}
 	}
