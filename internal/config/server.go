@@ -26,6 +26,8 @@ const (
 	EnvAuditFile = "AUDIT_FILE"
 	// Ссылка для передачи логов создания и прохождения по сокращённым ссылкам
 	EnvAuditURL = "AUDIT_URL"
+	// Поддержка HTTPS
+	EnvEnableHTTPS = "ENABLE_HTTPS"
 )
 
 // Консольные флаги
@@ -39,13 +41,15 @@ const (
 	// Название флага параметров подключения к БД
 	FlagDSN = "d"
 	// Название флага для срока жизни токена аутентификации пользователя (Nanosecond)
-	FlagTokenExp = "e"
+	FlagTokenExp = "token-exp"
 	// Название флага для приватного ключа JWT
 	FlagSecretKey = "s"
 	// Название флага для логов аудита
 	FlagAuditFile = "audit-file"
 	// Ссылка для логов аудита
 	FlagAuditURL = "audit-url"
+	// Поддержка HTTPS
+	FlagEnableHTTPS = "e"
 )
 
 // Параметры по умолчанию
@@ -56,18 +60,21 @@ const (
 	DefaultNetAddress = "localhost:8080"
 	// DefaultTokenExp - Время жизни JWT токена
 	DefaultTokenExp = time.Hour * 3
+	// Поддержка HTTPS
+	DefaultEnableHTTPS = false
 )
 
 // Server - Структура для хранения конфигурации
 type Server struct {
-	BaseURL    string
-	NetAddress string
-	FilePath   string
-	DSN        string
-	TokenExp   time.Duration
-	SecretKey  string
-	AuditFile  string
-	AuditURL   string
+	BaseURL     string
+	NetAddress  string
+	FilePath    string
+	DSN         string
+	TokenExp    time.Duration
+	SecretKey   string
+	AuditFile   string
+	AuditURL    string
+	EnableHTTPS bool
 }
 
 // serverCfg - Объект конфига для сервера
@@ -76,14 +83,15 @@ var serverCfg *Server
 // NewEmpty - Конфиг заполненный дефолтными значениями
 func NewEmpty() *Server {
 	return &Server{
-		BaseURL:    DefaultBaseURL,
-		NetAddress: DefaultNetAddress,
-		FilePath:   "",
-		DSN:        "",
-		TokenExp:   DefaultTokenExp,
-		SecretKey:  "",
-		AuditFile:  "",
-		AuditURL:   "",
+		BaseURL:     DefaultBaseURL,
+		NetAddress:  DefaultNetAddress,
+		FilePath:    "",
+		DSN:         "",
+		TokenExp:    DefaultTokenExp,
+		SecretKey:   "",
+		AuditFile:   "",
+		AuditURL:    "",
+		EnableHTTPS: DefaultEnableHTTPS,
 	}
 }
 
@@ -116,8 +124,8 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 	// Шаг 1. Заполняем конфиг значениями из консольных флагов
 	fs := flag.NewFlagSet("app", flag.ContinueOnError)
 
-	fs.StringVar(&s.NetAddress, FlagNetAddress, "localhost:8080", "Адрес прослушиваемого сервера в формате ip:port")
-	fs.StringVar(&s.BaseURL, FlagBaseURL, "http://localhost:8080", "Базовый адрес сервера в формате http://localhost:8080")
+	fs.StringVar(&s.NetAddress, FlagNetAddress, DefaultNetAddress, "Адрес прослушиваемого сервера в формате ip:port")
+	fs.StringVar(&s.BaseURL, FlagBaseURL, DefaultBaseURL, "Базовый адрес сервера в формате http://localhost:8080")
 	fs.StringVar(&s.FilePath, FlagFilePath, "", "Путь до файла в котором будут храниться данные (если используется тип хранения \"В файле\")")
 	fs.StringVar(&s.DSN, FlagDSN, "", "Параметры подключения к БД (если используется тип хранения \"База данных\")")
 	fs.DurationVar(&s.TokenExp, FlagTokenExp, time.Hour*3, "Срок жизни токена аутентификации пользователя (Nanosecond)")
@@ -125,6 +133,8 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 
 	fs.StringVar(&s.AuditFile, FlagAuditFile, "", "Файл для логов аудита")
 	fs.StringVar(&s.AuditURL, FlagAuditURL, "", "URL для логов аудита")
+
+	fs.BoolVar(&s.EnableHTTPS, FlagEnableHTTPS, DefaultEnableHTTPS, "Поддержка HTTPS")
 
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("ошибка при парсинге аргументов командной строки: %w", err)
@@ -152,7 +162,7 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 		// Форматируем строку в число
 		tokenExp, err := strconv.Atoi(tokenExpStr)
 		if err != nil {
-			return err
+			return fmt.Errorf("ошибка при обработке срока жизни токена аутентификации: %w", err)
 		}
 
 		s.TokenExp = time.Duration(tokenExp)
@@ -170,6 +180,17 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 	// URL для логов аудита
 	if auditURL, ok := lookupFunc(EnvAuditURL); ok {
 		s.AuditURL = auditURL
+	}
+
+	// Поддержка HTTPS
+	if enableHTTPS, ok := lookupFunc(EnvEnableHTTPS); ok {
+		answer, err := strconv.ParseBool(enableHTTPS)
+
+		if err != nil {
+			return fmt.Errorf("ошибка при парсинге переменной EnvEnableHTTPS: %w", err)
+		}
+
+		s.EnableHTTPS = answer
 	}
 
 	return nil

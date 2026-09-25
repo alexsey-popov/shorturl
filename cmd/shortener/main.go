@@ -132,7 +132,12 @@ func main() {
 	r.MethodNotAllowed(h.HandleFails)
 
 	// Поднимает сервер
-	err = http.ListenAndServe(cfg.NetAddress, r)
+	if cfg.EnableHTTPS {
+		err = http.ListenAndServeTLS(cfg.NetAddress, "cert.pem", "key.pem", r)
+	} else {
+		err = http.ListenAndServe(cfg.NetAddress, r)
+	}
+
 	if err != nil {
 		sugar.Fatalf("ошибка в работе сервера: %v", err)
 	}
