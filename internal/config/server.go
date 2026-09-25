@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -28,6 +29,8 @@ const (
 	EnvAuditURL = "AUDIT_URL"
 	// Поддержка HTTPS
 	EnvEnableHTTPS = "ENABLE_HTTPS"
+	// Файл с конфигом
+	EncConfigFile = "CONFIG"
 )
 
 // Консольные флаги
@@ -50,6 +53,8 @@ const (
 	FlagAuditURL = "audit-url"
 	// Поддержка HTTPS
 	FlagEnableHTTPS = "e"
+	// Файл с конфигом
+	FlagConfigFile = "c"
 )
 
 // Параметры по умолчанию
@@ -66,15 +71,15 @@ const (
 
 // Server - Структура для хранения конфигурации
 type Server struct {
-	BaseURL     string
-	NetAddress  string
-	FilePath    string
-	DSN         string
-	TokenExp    time.Duration
-	SecretKey   string
-	AuditFile   string
-	AuditURL    string
-	EnableHTTPS bool
+	BaseURL     string        `json:"base_url"`
+	NetAddress  string        `json:"address"`
+	FilePath    string        `json:"store_file"`
+	DSN         string        `json:"database_dsn"`
+	TokenExp    time.Duration `json:"token_exp"`
+	SecretKey   string        `json:"secret_key"`
+	AuditFile   string        `json:"audit_file"`
+	AuditURL    string        `json:"audit_url"`
+	EnableHTTPS bool          `json:"enable_https"`
 }
 
 // serverCfg - Объект конфига для сервера
@@ -121,26 +126,44 @@ func (s Server) HasAudit() bool {
 // Parse - Парсим флаги и переменные окружения
 func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) error {
 	// Каждый следующий шаг может перезаписать данные из предыдущего шага.
-	// Шаг 1. Заполняем конфиг значениями из консольных флагов
+
 	fs := flag.NewFlagSet("app", flag.ContinueOnError)
 
-	fs.StringVar(&s.NetAddress, FlagNetAddress, DefaultNetAddress, "Адрес прослушиваемого сервера в формате ip:port")
-	fs.StringVar(&s.BaseURL, FlagBaseURL, DefaultBaseURL, "Базовый адрес сервера в формате http://localhost:8080")
+	// Шаг 1. Пытаемся подгрузить дефолтные значения из файла переданного через флаги
+	var flagCfgFile string
+	fs.StringVar(&flagCfgFile, FlagConfigFile, "", "Файл с конфигом")
+
+	// Шаг 2. Пытаемся подгрузить дефолтные значения из файла переданного через env
+	if envCfgFile, ok := lookupFunc(EncConfigFile); ok {
+		if err := s.ParseFromFile(envCfgFile); err != nil {
+			return fmt.Errorf("ошибка при парсинге конфига из файла(env): %w", err)
+		}
+	}
+
+	// Шаг 3. Заполняем конфиг значениями из консольных флагов
+	fs.StringVar(&s.NetAddress, FlagNetAddress, s.NetAddress, "Адрес прослушиваемого сервера в формате ip:port")
+	fs.StringVar(&s.BaseURL, FlagBaseURL, s.BaseURL, "Базовый адрес сервера в формате http://localhost:8080")
 	fs.StringVar(&s.FilePath, FlagFilePath, "", "Путь до файла в котором будут храниться данные (если используется тип хранения \"В файле\")")
 	fs.StringVar(&s.DSN, FlagDSN, "", "Параметры подключения к БД (если используется тип хранения \"База данных\")")
-	fs.DurationVar(&s.TokenExp, FlagTokenExp, time.Hour*3, "Срок жизни токена аутентификации пользователя (Nanosecond)")
+	fs.DurationVar(&s.TokenExp, FlagTokenExp, s.TokenExp, "Срок жизни токена аутентификации пользователя (Nanosecond)")
 	fs.StringVar(&s.SecretKey, FlagSecretKey, "", "Приватный ключ JWT")
 
 	fs.StringVar(&s.AuditFile, FlagAuditFile, "", "Файл для логов аудита")
 	fs.StringVar(&s.AuditURL, FlagAuditURL, "", "URL для логов аудита")
 
-	fs.BoolVar(&s.EnableHTTPS, FlagEnableHTTPS, DefaultEnableHTTPS, "Поддержка HTTPS")
+	fs.BoolVar(&s.EnableHTTPS, FlagEnableHTTPS, s.EnableHTTPS, "Поддержка HTTPS")
 
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("ошибка при парсинге аргументов командной строки: %w", err)
 	}
 
-	// Шаг 2. Заполняем значения из переменных окружения
+	if flagCfgFile != "" {
+		if err := s.ParseFromFile(flagCfgFile); err != nil {
+			return fmt.Errorf("ошибка при парсинге конфига из файла(flag): %w", err)
+		}
+	}
+
+	// Шаг 4. Заполняем значения из переменных окружения
 	// Адрес сервера
 	if netAddress, ok := lookupFunc(EnvNetAddress); ok {
 		s.NetAddress = netAddress
@@ -191,6 +214,20 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 		}
 
 		s.EnableHTTPS = answer
+	}
+
+	return nil
+}
+
+// ParseFromFile - Парсинг конфига из файла
+func (s *Server) ParseFromFile(path string) error {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("ошибка при чтении файла: %w", err)
+	}
+
+	if err = json.Unmarshal(file, &s); err != nil {
+		return fmt.Errorf("ошибка десериализации данных файла: %w", err)
 	}
 
 	return nil
