@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
@@ -131,16 +136,49 @@ func main() {
 	r.Get("/{id}", h.HandleGet)
 	r.MethodNotAllowed(h.HandleFails)
 
-	// Поднимает сервер
-	if cfg.EnableHTTPS {
-		err = http.ListenAndServeTLS(cfg.NetAddress, "cert.pem", "key.pem", r)
-	} else {
-		err = http.ListenAndServe(cfg.NetAddress, r)
+	// Создаём HTTP-сервер
+	server := &http.Server{
+		Addr:    cfg.NetAddress,
+		Handler: r,
 	}
 
-	if err != nil {
-		sugar.Fatalf("ошибка в работе сервера: %v", err)
+	// Канал для перехвата системных сигналов завершения
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	// Запускаем сервер в отдельной горутине
+	go func() {
+		var srvErr error
+		if cfg.EnableHTTPS {
+			sugar.Infof("Сервер запущен по адресу https://%s", cfg.NetAddress)
+			srvErr = server.ListenAndServeTLS("cert.pem", "key.pem")
+		} else {
+			sugar.Infof("Сервер запущен по адресу http://%s", cfg.NetAddress)
+			srvErr = server.ListenAndServe()
+		}
+
+		if srvErr != nil && !errors.Is(srvErr, http.ErrServerClosed) {
+			sugar.Fatalf("ошибка в работе сервера: %v", srvErr)
+		}
+	}()
+
+	// Ожидаем сигнала для graceful shutdown
+	sig := <-stop
+	sugar.Infof("Получен сигнал остановки (%s), завершаем работу сервера...", sig)
+
+	// Контекст с таймаутом для плавного завершения активных соединений
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err = server.Shutdown(shutdownCtx); err != nil {
+		sugar.Errorf("ошибка при остановке сервера: %v", err)
 	}
+
+	// Закрываем канал задач удаления и ожидаем завершения воркеров
+	close(delCh)
+	delWG.Wait()
+
+	sugar.Infoln("Сервер успешно остановлен")
 }
 
 // connectDB - Подключение в БД и выполнение миграций
