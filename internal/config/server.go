@@ -30,7 +30,7 @@ const (
 	// Поддержка HTTPS
 	EnvEnableHTTPS = "ENABLE_HTTPS"
 	// Файл с конфигом
-	EncConfigFile = "CONFIG"
+	EnvConfigFile = "CONFIG"
 )
 
 // Консольные флаги
@@ -134,7 +134,7 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 	fs.StringVar(&flagCfgFile, FlagConfigFile, "", "Файл с конфигом")
 
 	// Шаг 2. Пытаемся подгрузить дефолтные значения из файла переданного через env
-	if envCfgFile, ok := lookupFunc(EncConfigFile); ok {
+	if envCfgFile, ok := lookupFunc(EnvConfigFile); ok {
 		if err := s.ParseFromFile(envCfgFile); err != nil {
 			return fmt.Errorf("ошибка при парсинге конфига из файла(env): %w", err)
 		}
