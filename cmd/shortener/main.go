@@ -146,31 +146,38 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	// Канал для ошибок запуска сервера
+	srvErr := make(chan error, 1)
+
 	// Запускаем сервер в отдельной горутине
 	go func() {
-		var srvErr error
+		var err error
 		if cfg.EnableHTTPS {
 			sugar.Infof("Сервер запущен по адресу https://%s", cfg.NetAddress)
-			srvErr = server.ListenAndServeTLS("cert.pem", "key.pem")
+			err = server.ListenAndServeTLS("cert.pem", "key.pem")
 		} else {
 			sugar.Infof("Сервер запущен по адресу http://%s", cfg.NetAddress)
-			srvErr = server.ListenAndServe()
+			err = server.ListenAndServe()
 		}
 
-		if srvErr != nil && !errors.Is(srvErr, http.ErrServerClosed) {
-			sugar.Fatalf("ошибка в работе сервера: %v", srvErr)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			srvErr <- err
 		}
 	}()
 
-	// Ожидаем сигнала для graceful shutdown
-	sig := <-stop
-	sugar.Infof("Получен сигнал остановки (%s), завершаем работу сервера...", sig)
+	// Ожидаем сигнала или ошибки сервера для graceful shutdown
+	select {
+	case sig := <-stop:
+		sugar.Infof("Получен сигнал остановки (%s), завершаем работу сервера...", sig)
+	case err := <-srvErr:
+		sugar.Errorf("ошибка в работе сервера: %v", err)
+	}
 
 	// Контекст с таймаутом для плавного завершения активных соединений
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
-	if err = server.Shutdown(shutdownCtx); err != nil {
+	if err := server.Shutdown(shutdownCtx); err != nil {
 		sugar.Errorf("ошибка при остановке сервера: %v", err)
 	}
 
