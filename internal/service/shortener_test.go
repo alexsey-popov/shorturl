@@ -10,13 +10,15 @@ import (
 )
 
 type mockRepository struct {
-	setFunc          func(url model.URL) error
-	setManyFunc      func(urls []model.URL) error
-	getFunc          func(prefix string) (model.URL, error)
-	findFromUserID   func(userID string) ([]model.URL, error)
-	findFromOriginal func(originalURL string) (model.URL, error)
-	deleteManyFunc   func(prefixes []string, userID string) error
-	pingFunc         func() error
+	setFunc           func(url model.URL) error
+	setManyFunc       func(urls []model.URL) error
+	getFunc           func(prefix string) (model.URL, error)
+	findFromUserID    func(userID string) ([]model.URL, error)
+	findFromOriginal  func(originalURL string) (model.URL, error)
+	deleteManyFunc    func(prefixes []string, userID string) error
+	pingFunc          func() error
+	getUrlsCountFunc  func() (int, error)
+	getUsersCountFunc func() (int, error)
 }
 
 func (m *mockRepository) Set(url model.URL) error {
@@ -66,6 +68,20 @@ func (m *mockRepository) Ping() error {
 		return m.pingFunc()
 	}
 	return nil
+}
+
+func (m *mockRepository) GetUrlsCount() (int, error) {
+	if m.getUrlsCountFunc != nil {
+		return m.getUrlsCountFunc()
+	}
+	return 0, nil
+}
+
+func (m *mockRepository) GetUsersCount() (int, error) {
+	if m.getUsersCountFunc != nil {
+		return m.getUsersCountFunc()
+	}
+	return 0, nil
 }
 
 func TestNewMemoryShortener(t *testing.T) {

@@ -239,3 +239,29 @@ func fanIn[T any](chs []chan T) chan T {
 	// возвращаем общий канал
 	return outCh
 }
+
+// GetUrlsCount - получение общего количества сокращённых ссылок
+func (rep *InMemory) GetUrlsCount() (int, error) {
+	// Защищаем map от записи в момент, когда мы получаем количество записей
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
+
+	return len(rep.data), nil
+}
+
+// GetUrlsCount - получение общего количества пользователей
+func (rep *InMemory) GetUsersCount() (int, error) {
+	// Защищаем map от записи в момент, когда мы читаем банные из мапы
+	rep.mu.RLock()
+	defer rep.mu.RUnlock()
+
+	users := make(map[string]string, len(rep.data))
+
+	for _, url := range rep.data {
+		if url.UserID != "" {
+			users[url.UserID] = url.UserID
+		}
+	}
+
+	return len(users), nil
+}
