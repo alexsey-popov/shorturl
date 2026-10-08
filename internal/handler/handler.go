@@ -440,3 +440,25 @@ func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 }
+
+// HandleGetStats - Обработчик для запроса /api/internal/stats
+func (h Handler) HandleGetStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.shortener.GetStats()
+	if err != nil {
+		h.sugar.Error(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	// Подготавливаем json ответ
+	response, err := json.Marshal(stats)
+	if err != nil {
+		h.sugar.Errorf("ошибка при сериализации данных: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", contenttype.JSON)
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
+}

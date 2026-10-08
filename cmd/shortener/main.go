@@ -20,6 +20,7 @@ import (
 	"github.com/alexsey-popov/shorturl/internal/handler"
 	"github.com/alexsey-popov/shorturl/internal/logger"
 	"github.com/alexsey-popov/shorturl/internal/service"
+	"github.com/alexsey-popov/shorturl/internal/subnet"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
@@ -134,6 +135,9 @@ func main() {
 	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
 	r.Get("/ping", h.HandleGetPing)
 	r.Get("/{id}", h.HandleGet)
+
+	r.With(subnet.HTTPMiddleware(sugar, cfg.TrustedSubnet)).Get("/api/internal/stats", h.HandleGetStats)
+
 	r.MethodNotAllowed(h.HandleFails)
 
 	// Создаём HTTP-сервер

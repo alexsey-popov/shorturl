@@ -27,6 +27,10 @@ type Repository interface {
 	DeleteManyFromUserID(prefixes []string, userID string) error
 	// Ping - Проверка соединения
 	Ping() error
+	// GetUrlsCount - Получение общего количества сокращённых ссылок
+	GetUrlsCount() (int, error)
+	// GetUsersCount - Получение общего количества пользователей
+	GetUsersCount() (int, error)
 }
 
 // Shortener - Сервис для сокращения ссылок
