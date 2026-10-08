@@ -1,8 +1,10 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"time"
@@ -26,6 +28,10 @@ const (
 	EnvAuditFile = "AUDIT_FILE"
 	// Ссылка для передачи логов создания и прохождения по сокращённым ссылкам
 	EnvAuditURL = "AUDIT_URL"
+	// Поддержка HTTPS
+	EnvEnableHTTPS = "ENABLE_HTTPS"
+	// Файл с конфигом
+	EnvConfigFile = "CONFIG"
 )
 
 // Консольные флаги
@@ -39,13 +45,17 @@ const (
 	// Название флага параметров подключения к БД
 	FlagDSN = "d"
 	// Название флага для срока жизни токена аутентификации пользователя (Nanosecond)
-	FlagTokenExp = "e"
+	FlagTokenExp = "token-exp"
 	// Название флага для приватного ключа JWT
 	FlagSecretKey = "s"
 	// Название флага для логов аудита
 	FlagAuditFile = "audit-file"
 	// Ссылка для логов аудита
 	FlagAuditURL = "audit-url"
+	// Поддержка HTTPS
+	FlagEnableHTTPS = "e"
+	// Файл с конфигом
+	FlagConfigFile = "c"
 )
 
 // Параметры по умолчанию
@@ -56,18 +66,21 @@ const (
 	DefaultNetAddress = "localhost:8080"
 	// DefaultTokenExp - Время жизни JWT токена
 	DefaultTokenExp = time.Hour * 3
+	// Поддержка HTTPS
+	DefaultEnableHTTPS = false
 )
 
 // Server - Структура для хранения конфигурации
 type Server struct {
-	BaseURL    string
-	NetAddress string
-	FilePath   string
-	DSN        string
-	TokenExp   time.Duration
-	SecretKey  string
-	AuditFile  string
-	AuditURL   string
+	BaseURL     string        `json:"base_url"`
+	NetAddress  string        `json:"address"`
+	FilePath    string        `json:"store_file"`
+	DSN         string        `json:"database_dsn"`
+	TokenExp    time.Duration `json:"token_exp"`
+	SecretKey   string        `json:"secret_key"`
+	AuditFile   string        `json:"audit_file"`
+	AuditURL    string        `json:"audit_url"`
+	EnableHTTPS bool          `json:"enable_https"`
 }
 
 // serverCfg - Объект конфига для сервера
@@ -76,14 +89,15 @@ var serverCfg *Server
 // NewEmpty - Конфиг заполненный дефолтными значениями
 func NewEmpty() *Server {
 	return &Server{
-		BaseURL:    DefaultBaseURL,
-		NetAddress: DefaultNetAddress,
-		FilePath:   "",
-		DSN:        "",
-		TokenExp:   DefaultTokenExp,
-		SecretKey:  "",
-		AuditFile:  "",
-		AuditURL:   "",
+		BaseURL:     DefaultBaseURL,
+		NetAddress:  DefaultNetAddress,
+		FilePath:    "",
+		DSN:         "",
+		TokenExp:    DefaultTokenExp,
+		SecretKey:   "",
+		AuditFile:   "",
+		AuditURL:    "",
+		EnableHTTPS: DefaultEnableHTTPS,
 	}
 }
 
@@ -113,24 +127,62 @@ func (s Server) HasAudit() bool {
 // Parse - Парсим флаги и переменные окружения
 func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) error {
 	// Каждый следующий шаг может перезаписать данные из предыдущего шага.
-	// Шаг 1. Заполняем конфиг значениями из консольных флагов
+
+	// Шаг 1. Предварительный парсинг для получения пути к файлу конфигурации из флага (FlagConfigFile)
+	var flagCfgFile string
+	preFS := flag.NewFlagSet("config-file", flag.ContinueOnError)
+	preFS.SetOutput(io.Discard)
+	preFS.StringVar(&flagCfgFile, FlagConfigFile, "", "Файл с конфигом")
+
+	var dummyStr string
+	var dummyDur time.Duration
+	var dummyBool bool
+	preFS.StringVar(&dummyStr, FlagNetAddress, "", "")
+	preFS.StringVar(&dummyStr, FlagBaseURL, "", "")
+	preFS.StringVar(&dummyStr, FlagFilePath, "", "")
+	preFS.StringVar(&dummyStr, FlagDSN, "", "")
+	preFS.DurationVar(&dummyDur, FlagTokenExp, 0, "")
+	preFS.StringVar(&dummyStr, FlagSecretKey, "", "")
+	preFS.StringVar(&dummyStr, FlagAuditFile, "", "")
+	preFS.StringVar(&dummyStr, FlagAuditURL, "", "")
+	preFS.BoolVar(&dummyBool, FlagEnableHTTPS, false, "")
+
+	if err := preFS.Parse(args); err != nil {
+		return fmt.Errorf("ошибка при парсинге аргументов командной строки: %w", err)
+	}
+
+	// Шаг 2. Пытаемся подгрузить дефолтные значения из файла переданного через флаги
+	if flagCfgFile != "" {
+		if err := s.ParseFromFile(flagCfgFile); err != nil {
+			return fmt.Errorf("ошибка при парсинге конфига из файла(flag): %w", err)
+		}
+	}
+
+	// Шаг 3. Пытаемся подгрузить дефолтные значения из файла переданного через env (перекрывает файл из флага)
+	if envCfgFile, ok := lookupFunc(EnvConfigFile); ok && envCfgFile != "" {
+		if err := s.ParseFromFile(envCfgFile); err != nil {
+			return fmt.Errorf("ошибка при парсинге конфига из файла(env): %w", err)
+		}
+	}
+
+	// Шаг 4. Заполняем конфиг значениями из консольных флагов (перекрывают значения из файлов)
 	fs := flag.NewFlagSet("app", flag.ContinueOnError)
-
-	fs.StringVar(&s.NetAddress, FlagNetAddress, "localhost:8080", "Адрес прослушиваемого сервера в формате ip:port")
-	fs.StringVar(&s.BaseURL, FlagBaseURL, "http://localhost:8080", "Базовый адрес сервера в формате http://localhost:8080")
-	fs.StringVar(&s.FilePath, FlagFilePath, "", "Путь до файла в котором будут храниться данные (если используется тип хранения \"В файле\")")
-	fs.StringVar(&s.DSN, FlagDSN, "", "Параметры подключения к БД (если используется тип хранения \"База данных\")")
-	fs.DurationVar(&s.TokenExp, FlagTokenExp, time.Hour*3, "Срок жизни токена аутентификации пользователя (Nanosecond)")
-	fs.StringVar(&s.SecretKey, FlagSecretKey, "", "Приватный ключ JWT")
-
-	fs.StringVar(&s.AuditFile, FlagAuditFile, "", "Файл для логов аудита")
-	fs.StringVar(&s.AuditURL, FlagAuditURL, "", "URL для логов аудита")
+	fs.StringVar(&flagCfgFile, FlagConfigFile, flagCfgFile, "Файл с конфигом")
+	fs.StringVar(&s.NetAddress, FlagNetAddress, s.NetAddress, "Адрес прослушиваемого сервера в формате ip:port")
+	fs.StringVar(&s.BaseURL, FlagBaseURL, s.BaseURL, "Базовый адрес сервера в формате http://localhost:8080")
+	fs.StringVar(&s.FilePath, FlagFilePath, s.FilePath, "Путь до файла в котором будут храниться данные (если используется тип хранения \"В файле\")")
+	fs.StringVar(&s.DSN, FlagDSN, s.DSN, "Параметры подключения к БД (если используется тип хранения \"База данных\")")
+	fs.DurationVar(&s.TokenExp, FlagTokenExp, s.TokenExp, "Срок жизни токена аутентификации пользователя (Nanosecond)")
+	fs.StringVar(&s.SecretKey, FlagSecretKey, s.SecretKey, "Приватный ключ JWT")
+	fs.StringVar(&s.AuditFile, FlagAuditFile, s.AuditFile, "Файл для логов аудита")
+	fs.StringVar(&s.AuditURL, FlagAuditURL, s.AuditURL, "URL для логов аудита")
+	fs.BoolVar(&s.EnableHTTPS, FlagEnableHTTPS, s.EnableHTTPS, "Поддержка HTTPS")
 
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("ошибка при парсинге аргументов командной строки: %w", err)
 	}
 
-	// Шаг 2. Заполняем значения из переменных окружения
+	// Шаг 5. Заполняем значения из переменных окружения
 	// Адрес сервера
 	if netAddress, ok := lookupFunc(EnvNetAddress); ok {
 		s.NetAddress = netAddress
@@ -152,7 +204,7 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 		// Форматируем строку в число
 		tokenExp, err := strconv.Atoi(tokenExpStr)
 		if err != nil {
-			return err
+			return fmt.Errorf("ошибка при обработке срока жизни токена аутентификации: %w", err)
 		}
 
 		s.TokenExp = time.Duration(tokenExp)
@@ -170,6 +222,31 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 	// URL для логов аудита
 	if auditURL, ok := lookupFunc(EnvAuditURL); ok {
 		s.AuditURL = auditURL
+	}
+
+	// Поддержка HTTPS
+	if enableHTTPS, ok := lookupFunc(EnvEnableHTTPS); ok {
+		answer, err := strconv.ParseBool(enableHTTPS)
+
+		if err != nil {
+			return fmt.Errorf("ошибка при парсинге переменной EnvEnableHTTPS: %w", err)
+		}
+
+		s.EnableHTTPS = answer
+	}
+
+	return nil
+}
+
+// ParseFromFile - Парсинг конфига из файла
+func (s *Server) ParseFromFile(path string) error {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("ошибка при чтении файла: %w", err)
+	}
+
+	if err = json.Unmarshal(file, &s); err != nil {
+		return fmt.Errorf("ошибка десериализации данных файла: %w", err)
 	}
 
 	return nil
