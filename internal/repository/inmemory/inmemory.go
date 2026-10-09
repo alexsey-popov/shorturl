@@ -265,3 +265,8 @@ func (rep *InMemory) GetUsersCount() (int, error) {
 
 	return len(users), nil
 }
+
+// Close - закрытие соединения
+func (rep *InMemory) Close() error {
+	return nil
+}

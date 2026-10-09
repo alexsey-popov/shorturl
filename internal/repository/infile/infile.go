@@ -166,3 +166,8 @@ func (rep *InFile) GetUrlsCount() (int, error) {
 func (rep *InFile) GetUsersCount() (int, error) {
 	return rep.data.GetUsersCount()
 }
+
+// Close - закрытие соединения
+func (rep *InFile) Close() error {
+	return nil
+}

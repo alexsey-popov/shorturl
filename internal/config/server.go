@@ -125,6 +125,7 @@ func NewParsed() (*Server, error) {
 	return serverCfg, err
 }
 
+// TODO: Скорее всего нужно будет удалить
 // HasAudit - производится ли аудит запросов
 func (s Server) HasAudit() bool {
 	return s.AuditFile != "" || s.AuditURL != ""

@@ -171,3 +171,13 @@ func (rep *InDB) GetUsersCount() (int, error) {
 
 	return count, nil
 }
+
+// Close - закрытие соединения с бд
+func (rep *InDB) Close() error {
+	err := rep.db.Close()
+	if err != nil {
+		err = fmt.Errorf("ошибка при закрытии соединения с бд: %w", err)
+	}
+
+	return err
+}

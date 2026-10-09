@@ -35,24 +35,21 @@ type DeleteTask struct {
 
 // Handler - структура HTTP-хендеров приложения.
 type Handler struct {
-	sugar        *zap.SugaredLogger
-	shortener    service.Shortener
-	delCh        chan DeleteTask
-	auditManager *audit.Publisher
+	sugar          *zap.SugaredLogger
+	shortener      *service.Shortener
+	auditPublisher *audit.Publisher
 }
 
 // NewHandler - конструктор Handler.
 func NewHandler(
 	sugar *zap.SugaredLogger,
-	shortener service.Shortener,
-	delCh chan DeleteTask,
-	auditManager *audit.Publisher,
-) Handler {
-	return Handler{
-		sugar:        sugar,
-		shortener:    shortener,
-		delCh:        delCh,
-		auditManager: auditManager,
+	shortener *service.Shortener,
+	auditPublisher *audit.Publisher,
+) *Handler {
+	return &Handler{
+		sugar:          sugar,
+		shortener:      shortener,
+		auditPublisher: auditPublisher,
 	}
 }
 
@@ -79,8 +76,8 @@ func (h Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := h.getUserID(r)
-	if h.auditManager != nil {
-		h.auditManager.Notify(context.TODO(), audit.Event{
+	if h.auditPublisher != nil {
+		h.auditPublisher.Notify(context.TODO(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "follow",
 			UserID:    userID,
@@ -124,8 +121,8 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &conflictErr) {
 			diffShortURL, err2 := h.shortener.GetURLFromPrefix(conflictErr.DiffURL.Prefix)
 			if err2 == nil {
-				if h.auditManager != nil {
-					h.auditManager.Notify(context.TODO(), audit.Event{
+				if h.auditPublisher != nil {
+					h.auditPublisher.Notify(context.TODO(), audit.Event{
 						Timestamp: time.Now().Unix(),
 						Action:    "shorten",
 						UserID:    userID,
@@ -146,8 +143,8 @@ func (h Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.auditManager != nil {
-		h.auditManager.Notify(context.TODO(), audit.Event{
+	if h.auditPublisher != nil {
+		h.auditPublisher.Notify(context.TODO(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "shorten",
 			UserID:    userID,
@@ -208,8 +205,8 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 					},
 				)
 				if err3 == nil {
-					if h.auditManager != nil {
-						h.auditManager.Notify(context.TODO(), audit.Event{
+					if h.auditPublisher != nil {
+						h.auditPublisher.Notify(context.TODO(), audit.Event{
 							Timestamp: time.Now().Unix(),
 							Action:    "shorten",
 							UserID:    userID,
@@ -231,8 +228,8 @@ func (h Handler) HandlePostJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.auditManager != nil {
-		h.auditManager.Notify(context.TODO(), audit.Event{
+	if h.auditPublisher != nil {
+		h.auditPublisher.Notify(context.TODO(), audit.Event{
 			Timestamp: time.Now().Unix(),
 			Action:    "shorten",
 			UserID:    userID,
@@ -411,34 +408,36 @@ func (h Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleDeleteUserURLs - обработчик для Delete запроса api/user/urls (массовое удаление ссылок)
-func (h Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
-	prefixes := make([]string, 0)
-	if err := json.NewDecoder(r.Body).Decode(&prefixes); err != nil {
-		h.sugar.Errorf("ошибка при декодировании json: %v", err.Error())
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-	if len(prefixes) == 0 {
-		http.Error(w, ErrEmptyBatch.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Получаем id пользователя
-	userID, ok := h.getUserID(r)
-	if !ok {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return
-	}
-
-	// Отправляем задачу в канал для асинхронного удаления (fan-in паттерн)
-	go func() {
-		h.delCh <- DeleteTask{
-			UserID:   userID,
-			Prefixes: prefixes,
+func (h Handler) HandleDeleteUserURLs(delCh chan DeleteTask) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		prefixes := make([]string, 0)
+		if err := json.NewDecoder(r.Body).Decode(&prefixes); err != nil {
+			h.sugar.Errorf("ошибка при декодировании json: %v", err.Error())
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
 		}
-	}()
+		if len(prefixes) == 0 {
+			http.Error(w, ErrEmptyBatch.Error(), http.StatusBadRequest)
+			return
+		}
 
-	w.WriteHeader(http.StatusAccepted)
+		// Получаем id пользователя
+		userID, ok := h.getUserID(r)
+		if !ok {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		// Отправляем задачу в канал для асинхронного удаления (fan-in паттерн)
+		go func() {
+			delCh <- DeleteTask{
+				UserID:   userID,
+				Prefixes: prefixes,
+			}
+		}()
+
+		w.WriteHeader(http.StatusAccepted)
+	}
 }
 
 // HandleGetStats - Обработчик для запроса /api/internal/stats
@@ -461,4 +460,9 @@ func (h Handler) HandleGetStats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contenttype.JSON)
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
+}
+
+// Close Закрытие обработчика
+func (h Handler) Close() error {
+	return h.auditPublisher.Close()
 }
