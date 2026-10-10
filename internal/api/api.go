@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// Api - фасад для управления серверами
-type Api struct {
+// API - фасад для управления серверами
+type API struct {
 	shortener *service.Shortener
 	sugar     *zap.SugaredLogger
 	rest      *rest.Server
@@ -20,7 +20,7 @@ type Api struct {
 }
 
 // NewFromConfig - создание объекта по данным из конфига
-func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*Api, error) {
+func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*API, error) {
 	// Создаём слой бизнес-логики
 	shortener, err := service.NewFromConfig(cfg, sugar)
 	if err != nil {
@@ -39,7 +39,7 @@ func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*Api, error) {
 		return nil, fmt.Errorf("ошибка при создании gRPC сервера: %w", err)
 	}
 
-	return &Api{
+	return &API{
 		shortener: shortener,
 		sugar:     sugar,
 		rest:      r,
@@ -48,7 +48,7 @@ func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*Api, error) {
 }
 
 // Close - Закрытие всех подключений
-func (a *Api) Close() error {
+func (a *API) Close() error {
 	// TODO: ДОПИШИ
 	return errors.Join(
 		// Закрываем REST сервер
@@ -60,7 +60,7 @@ func (a *Api) Close() error {
 	)
 }
 
-func (a *Api) ListenAndServe() error {
+func (a *API) ListenAndServe() error {
 	srvErr := make(chan error, 2)
 
 	// Запускаем REST сервер
