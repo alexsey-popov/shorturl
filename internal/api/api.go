@@ -33,8 +33,8 @@ func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*Api, error) {
 		return nil, fmt.Errorf("ошибка при создании REST сервера: %w", err)
 	}
 
-	//
-	g, err := grpcsrv.NewServer()
+	// Создаём сервер для gRPC API
+	g, err := grpcsrv.NewServer(shortener, cfg, sugar)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при создании gRPC сервера: %w", err)
 	}
@@ -61,7 +61,6 @@ func (a *Api) Close() error {
 }
 
 func (a *Api) ListenAndServe() error {
-	// Канал для ошибок запуска серверов с буфером на 2 горутины
 	srvErr := make(chan error, 2)
 
 	// Запускаем REST сервер
@@ -74,5 +73,12 @@ func (a *Api) ListenAndServe() error {
 		srvErr <- grpcsrv.ListenAndServe(a.grpc)
 	}()
 
-	return <-srvErr
+	// Ожидаем завершения серверов
+	for i := 0; i < 2; i++ {
+		if err := <-srvErr; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

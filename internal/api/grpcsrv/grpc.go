@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/alexsey-popov/shorturl/internal/config"
-	"github.com/alexsey-popov/shorturl/internal/handler"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	errors2 "github.com/alexsey-popov/shorturl/pkg/errors"
 	"go.uber.org/zap"
@@ -22,15 +21,21 @@ type Server struct {
 
 	server    *grpc.Server
 	shortener *service.Shortener
-	handler   *handler.Handler
 	cfg       *config.Server
 	sugar     *zap.SugaredLogger
-	delCh     chan handler.DeleteTask
 }
 
 // NewServer - создание сервера для gRPC API
-func NewServer() (*Server, error) {
-	return &Server{}, nil // TODO: ДОПИШИ
+func NewServer(
+	shortener *service.Shortener,
+	cfg *config.Server,
+	sugar *zap.SugaredLogger,
+) (*Server, error) {
+	return &Server{
+		shortener: shortener,
+		cfg:       cfg,
+		sugar:     sugar,
+	}, nil
 }
 
 // ListenAndServe - запуск gRPC сервера
@@ -43,12 +48,12 @@ func ListenAndServe(s *Server) error {
 	}
 
 	// создаём gRPC-сервер без зарегистрированной службы
-	srv := grpc.NewServer()
+	s.server = grpc.NewServer()
 	// регистрируем сервис
-	RegisterShortenerServiceServer(srv, s)
+	RegisterShortenerServiceServer(s.server, s)
 
 	s.sugar.Infof("Сервер(gRPC) запущен")
-	if err = srv.Serve(listen); err != nil {
+	if err = s.server.Serve(listen); err != nil {
 		return fmt.Errorf("ошибка на gRPC сервере: %w", err)
 	}
 
@@ -56,7 +61,10 @@ func ListenAndServe(s *Server) error {
 }
 
 // Close - закрытие сервера
-func (s Server) Close() error {
+func (s *Server) Close() error {
+	if s.server == nil {
+		return nil
+	}
 	stopped := make(chan struct{})
 	go func() {
 		s.server.GracefulStop()
@@ -75,7 +83,7 @@ func (s Server) Close() error {
 }
 
 // ShortenURL - сокращение ссылки
-func (s Server) ShortenURL(ctx context.Context, in *URLShortenRequest) (*URLShortenResponse, error) {
+func (s *Server) ShortenURL(ctx context.Context, in *URLShortenRequest) (*URLShortenResponse, error) {
 	// response - объект ответа
 	var response URLShortenResponse
 	// shortURL - сокращенный URL
@@ -113,13 +121,13 @@ func (s Server) ShortenURL(ctx context.Context, in *URLShortenRequest) (*URLShor
 	return &response, nil
 }
 
-func (s Server) ExpandURL(ctx context.Context, in *URLExpandRequest) (*URLExpandResponse, error) {
+func (s *Server) ExpandURL(ctx context.Context, in *URLExpandRequest) (*URLExpandResponse, error) {
 	var response URLExpandResponse
 
 	return &response, nil
 }
 
-func (s Server) ListUserURLs(ctx context.Context, in *emptypb.Empty) (*UserURLsResponse, error) {
+func (s *Server) ListUserURLs(ctx context.Context, in *emptypb.Empty) (*UserURLsResponse, error) {
 	var response UserURLsResponse
 
 	return &response, nil

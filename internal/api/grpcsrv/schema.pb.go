@@ -32,7 +32,7 @@ type URLShortenRequest struct {
 
 func (x *URLShortenRequest) Reset() {
 	*x = URLShortenRequest{}
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[0]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *URLShortenRequest) String() string {
 func (*URLShortenRequest) ProtoMessage() {}
 
 func (x *URLShortenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[0]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -110,7 +110,7 @@ type URLShortenResponse struct {
 
 func (x *URLShortenResponse) Reset() {
 	*x = URLShortenResponse{}
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[1]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -122,7 +122,7 @@ func (x *URLShortenResponse) String() string {
 func (*URLShortenResponse) ProtoMessage() {}
 
 func (x *URLShortenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[1]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -188,7 +188,7 @@ type URLExpandRequest struct {
 
 func (x *URLExpandRequest) Reset() {
 	*x = URLExpandRequest{}
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[2]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +200,7 @@ func (x *URLExpandRequest) String() string {
 func (*URLExpandRequest) ProtoMessage() {}
 
 func (x *URLExpandRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[2]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -266,7 +266,7 @@ type URLExpandResponse struct {
 
 func (x *URLExpandResponse) Reset() {
 	*x = URLExpandResponse{}
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[3]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -278,7 +278,7 @@ func (x *URLExpandResponse) String() string {
 func (*URLExpandResponse) ProtoMessage() {}
 
 func (x *URLExpandResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[3]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -342,7 +342,7 @@ type UserURLsResponse struct {
 
 func (x *UserURLsResponse) Reset() {
 	*x = UserURLsResponse{}
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[4]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -354,7 +354,7 @@ func (x *UserURLsResponse) String() string {
 func (*UserURLsResponse) ProtoMessage() {}
 
 func (x *UserURLsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[4]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +404,7 @@ type URLData struct {
 
 func (x *URLData) Reset() {
 	*x = URLData{}
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[5]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -416,7 +416,7 @@ func (x *URLData) String() string {
 func (*URLData) ProtoMessage() {}
 
 func (x *URLData) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_api_grpc_schema_proto_msgTypes[5]
+	mi := &file_internal_api_grpcsrv_schema_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,11 +503,11 @@ func (b0 URLData_builder) Build() *URLData {
 	return m0
 }
 
-var File_internal_api_grpc_schema_proto protoreflect.FileDescriptor
+var File_internal_api_grpcsrv_schema_proto protoreflect.FileDescriptor
 
-const file_internal_api_grpc_schema_proto_rawDesc = "" +
+const file_internal_api_grpcsrv_schema_proto_rawDesc = "" +
 	"\n" +
-	"\x1einternal/api/grpcsrv/schema.proto\x12\x04grpc\x1a\x1bgoogle/protobuf/empty.proto\"%\n" +
+	"!internal/api/grpcsrv/schema.proto\x12\x04grpc\x1a\x1bgoogle/protobuf/empty.proto\"%\n" +
 	"\x11URLShortenRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\",\n" +
 	"\x12URLShortenResponse\x12\x16\n" +
@@ -517,34 +517,34 @@ const file_internal_api_grpc_schema_proto_rawDesc = "" +
 	"\x11URLExpandResponse\x12\x16\n" +
 	"\x06result\x18\x01 \x01(\tR\x06result\"3\n" +
 	"\x10UserURLsResponse\x12\x1f\n" +
-	"\x03url\x18\x01 \x03(\v2\r.grpcsrv.URLDataR\x03url\"I\n" +
+	"\x03url\x18\x01 \x03(\v2\r.grpc.URLDataR\x03url\"I\n" +
 	"\aURLData\x12\x1b\n" +
 	"\tshort_url\x18\x01 \x01(\tR\bshortUrl\x12!\n" +
 	"\foriginal_url\x18\x02 \x01(\tR\voriginalUrl2\xd1\x01\n" +
 	"\x10ShortenerService\x12?\n" +
 	"\n" +
-	"ShortenURL\x12\x17.grpcsrv.URLShortenRequest\x1a\x18.grpcsrv.URLShortenResponse\x12<\n" +
-	"\tExpandURL\x12\x16.grpcsrv.URLExpandRequest\x1a\x17.grpcsrv.URLExpandResponse\x12>\n" +
-	"\fListUserURLs\x12\x16.google.protobuf.Empty\x1a\x16.grpcsrv.UserURLsResponseB\x13Z\x11internal/api/grpcb\beditionsp\xe8\a"
+	"ShortenURL\x12\x17.grpc.URLShortenRequest\x1a\x18.grpc.URLShortenResponse\x12<\n" +
+	"\tExpandURL\x12\x16.grpc.URLExpandRequest\x1a\x17.grpc.URLExpandResponse\x12>\n" +
+	"\fListUserURLs\x12\x16.google.protobuf.Empty\x1a\x16.grpc.UserURLsResponseB\x16Z\x14internal/api/grpcsrvb\beditionsp\xe8\a"
 
-var file_internal_api_grpc_schema_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_internal_api_grpc_schema_proto_goTypes = []any{
-	(*URLShortenRequest)(nil),  // 0: grpcsrv.URLShortenRequest
-	(*URLShortenResponse)(nil), // 1: grpcsrv.URLShortenResponse
-	(*URLExpandRequest)(nil),   // 2: grpcsrv.URLExpandRequest
-	(*URLExpandResponse)(nil),  // 3: grpcsrv.URLExpandResponse
-	(*UserURLsResponse)(nil),   // 4: grpcsrv.UserURLsResponse
-	(*URLData)(nil),            // 5: grpcsrv.URLData
+var file_internal_api_grpcsrv_schema_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_internal_api_grpcsrv_schema_proto_goTypes = []any{
+	(*URLShortenRequest)(nil),  // 0: grpc.URLShortenRequest
+	(*URLShortenResponse)(nil), // 1: grpc.URLShortenResponse
+	(*URLExpandRequest)(nil),   // 2: grpc.URLExpandRequest
+	(*URLExpandResponse)(nil),  // 3: grpc.URLExpandResponse
+	(*UserURLsResponse)(nil),   // 4: grpc.UserURLsResponse
+	(*URLData)(nil),            // 5: grpc.URLData
 	(*emptypb.Empty)(nil),      // 6: google.protobuf.Empty
 }
-var file_internal_api_grpc_schema_proto_depIdxs = []int32{
-	5, // 0: grpcsrv.UserURLsResponse.url:type_name -> grpcsrv.URLData
-	0, // 1: grpcsrv.ShortenerService.ShortenURL:input_type -> grpcsrv.URLShortenRequest
-	2, // 2: grpcsrv.ShortenerService.ExpandURL:input_type -> grpcsrv.URLExpandRequest
-	6, // 3: grpcsrv.ShortenerService.ListUserURLs:input_type -> google.protobuf.Empty
-	1, // 4: grpcsrv.ShortenerService.ShortenURL:output_type -> grpcsrv.URLShortenResponse
-	3, // 5: grpcsrv.ShortenerService.ExpandURL:output_type -> grpcsrv.URLExpandResponse
-	4, // 6: grpcsrv.ShortenerService.ListUserURLs:output_type -> grpcsrv.UserURLsResponse
+var file_internal_api_grpcsrv_schema_proto_depIdxs = []int32{
+	5, // 0: grpc.UserURLsResponse.url:type_name -> grpc.URLData
+	0, // 1: grpc.ShortenerService.ShortenURL:input_type -> grpc.URLShortenRequest
+	2, // 2: grpc.ShortenerService.ExpandURL:input_type -> grpc.URLExpandRequest
+	6, // 3: grpc.ShortenerService.ListUserURLs:input_type -> google.protobuf.Empty
+	1, // 4: grpc.ShortenerService.ShortenURL:output_type -> grpc.URLShortenResponse
+	3, // 5: grpc.ShortenerService.ExpandURL:output_type -> grpc.URLExpandResponse
+	4, // 6: grpc.ShortenerService.ListUserURLs:output_type -> grpc.UserURLsResponse
 	4, // [4:7] is the sub-list for method output_type
 	1, // [1:4] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -552,26 +552,26 @@ var file_internal_api_grpc_schema_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_internal_api_grpc_schema_proto_init() }
-func file_internal_api_grpc_schema_proto_init() {
-	if File_internal_api_grpc_schema_proto != nil {
+func init() { file_internal_api_grpcsrv_schema_proto_init() }
+func file_internal_api_grpcsrv_schema_proto_init() {
+	if File_internal_api_grpcsrv_schema_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_api_grpc_schema_proto_rawDesc), len(file_internal_api_grpc_schema_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_api_grpcsrv_schema_proto_rawDesc), len(file_internal_api_grpcsrv_schema_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_internal_api_grpc_schema_proto_goTypes,
-		DependencyIndexes: file_internal_api_grpc_schema_proto_depIdxs,
-		MessageInfos:      file_internal_api_grpc_schema_proto_msgTypes,
+		GoTypes:           file_internal_api_grpcsrv_schema_proto_goTypes,
+		DependencyIndexes: file_internal_api_grpcsrv_schema_proto_depIdxs,
+		MessageInfos:      file_internal_api_grpcsrv_schema_proto_msgTypes,
 	}.Build()
-	File_internal_api_grpc_schema_proto = out.File
-	file_internal_api_grpc_schema_proto_goTypes = nil
-	file_internal_api_grpc_schema_proto_depIdxs = nil
+	File_internal_api_grpcsrv_schema_proto = out.File
+	file_internal_api_grpcsrv_schema_proto_goTypes = nil
+	file_internal_api_grpcsrv_schema_proto_depIdxs = nil
 }
