@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/auth"
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
@@ -22,10 +23,11 @@ import (
 type Server struct {
 	UnimplementedShortenerServiceServer
 
-	server    *grpc.Server
-	shortener *service.Shortener
-	cfg       *config.Server
-	sugar     *zap.SugaredLogger
+	server         *grpc.Server
+	shortener      *service.Shortener
+	cfg            *config.Server
+	sugar          *zap.SugaredLogger
+	auditPublisher *audit.Publisher
 }
 
 // NewServer - создание сервера для gRPC API
@@ -34,10 +36,16 @@ func NewServer(
 	cfg *config.Server,
 	sugar *zap.SugaredLogger,
 ) (*Server, error) {
+	auditPublisher, err := audit.NewPublisherFromConfig(cfg, sugar)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при создании посредника аудита: %w", err)
+	}
+
 	return &Server{
-		shortener: shortener,
-		cfg:       cfg,
-		sugar:     sugar,
+		shortener:      shortener,
+		cfg:            cfg,
+		sugar:          sugar,
+		auditPublisher: auditPublisher,
 	}, nil
 }
 
@@ -85,6 +93,9 @@ func ListenAndServe(s *Server) error {
 // Close - закрытие сервера
 func (s *Server) Close() error {
 	if s.server == nil {
+		if s.auditPublisher != nil {
+			return s.auditPublisher.Close()
+		}
 		return nil
 	}
 	stopped := make(chan struct{})
@@ -99,6 +110,10 @@ func (s *Server) Close() error {
 	case <-time.After(15 * time.Second):
 		s.sugar.Error("Сервер(gRPC) не успел обработать запросы до таймаута и завершен принудительно")
 		s.server.Stop()
+	}
+
+	if s.auditPublisher != nil {
+		return s.auditPublisher.Close()
 	}
 
 	return nil
@@ -136,6 +151,16 @@ func (s *Server) ShortenURL(ctx context.Context, in *URLShortenRequest) (*URLSho
 		}
 	}
 
+	// Отмечаем событие аудита
+	if s.auditPublisher != nil {
+		s.auditPublisher.Notify(context.TODO(), audit.Event{
+			Timestamp: time.Now().Unix(),
+			Action:    "shorten",
+			UserID:    userID,
+			URL:       originalURL,
+		})
+	}
+
 	// Добавляем ссылку в тело ответа
 	response.SetResult(shortURL)
 
@@ -158,6 +183,17 @@ func (s *Server) ExpandURL(ctx context.Context, in *URLExpandRequest) (*URLExpan
 
 	if url.IsDeleted {
 		return nil, status.Error(codes.NotFound, "ссылка удалена")
+	}
+
+	// Отмечаем событие аудита
+	if s.auditPublisher != nil {
+		userID, _ := auth.GetUserID(ctx)
+		s.auditPublisher.Notify(context.TODO(), audit.Event{
+			Timestamp: time.Now().Unix(),
+			Action:    "follow",
+			UserID:    userID,
+			URL:       url.OriginalURL,
+		})
 	}
 
 	response.SetResult(url.OriginalURL)

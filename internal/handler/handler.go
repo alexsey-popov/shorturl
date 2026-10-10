@@ -464,5 +464,8 @@ func (h Handler) HandleGetStats(w http.ResponseWriter, r *http.Request) {
 
 // Close Закрытие обработчика
 func (h Handler) Close() error {
-	return h.auditPublisher.Close()
+	if h.auditPublisher != nil {
+		return h.auditPublisher.Close()
+	}
+	return nil
 }

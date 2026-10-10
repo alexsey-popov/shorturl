@@ -19,6 +19,7 @@ type mockRepository struct {
 	pingFunc          func() error
 	getUrlsCountFunc  func() (int, error)
 	getUsersCountFunc func() (int, error)
+	closeFunc         func() error
 }
 
 func (m *mockRepository) Set(url model.URL) error {
@@ -84,6 +85,13 @@ func (m *mockRepository) GetUsersCount() (int, error) {
 	return 0, nil
 }
 
+func (m *mockRepository) Close() error {
+	if m.closeFunc != nil {
+		return m.closeFunc()
+	}
+	return nil
+}
+
 func TestNewMemoryShortener(t *testing.T) {
 	s := NewMemoryShortener("http://localhost:8080")
 	assert.NotNil(t, s.Rep)
@@ -105,7 +113,7 @@ func TestNewFileShortener(t *testing.T) {
 		// Passing directory as file path should fail
 		s, err := NewFileShortener("http://localhost:8080", tmpDir)
 		assert.Error(t, err)
-		assert.NotNil(t, s)
+		assert.Nil(t, s)
 	})
 }
 
