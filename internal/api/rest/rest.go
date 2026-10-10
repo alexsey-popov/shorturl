@@ -74,10 +74,10 @@ func (s Server) ListenAndServe() error {
 	startDeleteWorkers(10, s.delCh, &delWG, s.shortener, s.sugar)
 
 	if s.cfg.EnableHTTPS {
-		s.sugar.Infof("Сервер запущен по адресу https://%s", s.cfg.NetAddress)
+		s.sugar.Infof("Сервер(REST) запущен по адресу https://%s", s.cfg.NetAddress)
 		err = s.server.ListenAndServeTLS("cert.pem", "key.pem")
 	} else {
-		s.sugar.Infof("Сервер запущен по адресу http://%s", s.cfg.NetAddress)
+		s.sugar.Infof("Сервер(REST) запущен по адресу http://%s", s.cfg.NetAddress)
 		err = s.server.ListenAndServe()
 	}
 
@@ -85,7 +85,12 @@ func (s Server) ListenAndServe() error {
 	close(s.delCh)
 	delWG.Wait()
 
-	return err
+	// Отдаём любую ошибку, кроме ошибки "Штатное завершение сервера"
+	if err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("ошибка REST сервера: %w", err)
+	}
+
+	return nil
 }
 
 // Close - закрытие сервера
