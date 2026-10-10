@@ -156,3 +156,18 @@ func New(filename string) (*InFile, error) {
 func (rep *InFile) Ping() error {
 	return nil
 }
+
+// GetUrlsCount - получение общего количества сокращённых ссылок
+func (rep *InFile) GetUrlsCount() (int, error) {
+	return rep.data.GetUrlsCount()
+}
+
+// GetUrlsCount - получение общего количества пользователей
+func (rep *InFile) GetUsersCount() (int, error) {
+	return rep.data.GetUsersCount()
+}
+
+// Close - закрытие соединения
+func (rep *InFile) Close() error {
+	return nil
+}

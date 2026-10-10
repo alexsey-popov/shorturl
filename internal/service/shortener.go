@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"net/url"
 
+	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/model"
 	"github.com/alexsey-popov/shorturl/internal/repository/indb"
 	"github.com/alexsey-popov/shorturl/internal/repository/infile"
 	"github.com/alexsey-popov/shorturl/internal/repository/inmemory"
+	"go.uber.org/zap"
 )
 
 // Repository - Интерфейс для хранилищ
@@ -27,6 +29,12 @@ type Repository interface {
 	DeleteManyFromUserID(prefixes []string, userID string) error
 	// Ping - Проверка соединения
 	Ping() error
+	// GetUrlsCount - Получение общего количества сокращённых ссылок
+	GetUrlsCount() (int, error)
+	// GetUsersCount - Получение общего количества пользователей
+	GetUsersCount() (int, error)
+	// Закрытие соединений
+	Close() error
 }
 
 // Shortener - Сервис для сокращения ссылок
@@ -35,30 +43,67 @@ type Shortener struct {
 	BaseURL string
 }
 
+// NewFromConfig - создание сервиса для сокращения ссылок по файлу конфигурации
+func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*Shortener, error) {
+	// Объект бизнес-логики
+	var shortener *Shortener
+
+	// Пытаемся подключить различные виды хранилищ (по умолчанию используется хранение в памяти)
+	switch {
+	// Если указаны данные для подключения в БД - используем БД
+	case cfg.DSN != "":
+		// Создаём объект взаимодействия с базой
+		// Закрытие соединения с бд происходит в Shortener.Close()
+		db, err := indb.ConnectDB(cfg.DSN)
+		if err != nil {
+			return nil, err
+		}
+
+		shortener = NewDBShortener(cfg.BaseURL, db)
+
+		sugar.Infoln("В качестве хранилища используется БД")
+	// Если нет данных для подключения к БД, но есть путь до файла - используем файл
+	case cfg.FilePath != "":
+		var err error
+		shortener, err = NewFileShortener(cfg.BaseURL, cfg.FilePath)
+		if err != nil {
+			return nil, err
+		}
+
+		sugar.Infoln("В качестве хранилища используется файл")
+	default:
+		shortener = NewMemoryShortener(cfg.BaseURL)
+
+		sugar.Infoln("В качестве хранилища используется ОЗУ")
+	}
+
+	return shortener, nil
+}
+
 // NewMemoryShortener - Конструктор Shortener для хранения данных в памяти
-func NewMemoryShortener(baseURL string) Shortener {
-	return Shortener{
+func NewMemoryShortener(baseURL string) *Shortener {
+	return &Shortener{
 		Rep:     inmemory.New(),
 		BaseURL: baseURL,
 	}
 }
 
 // NewFileShortener - Конструктор Shortener для хранения данных внутри файла
-func NewFileShortener(baseURL string, filepath string) (Shortener, error) {
+func NewFileShortener(baseURL string, filepath string) (*Shortener, error) {
 	rep, err := infile.New(filepath)
 	if err != nil {
-		return Shortener{BaseURL: baseURL}, err
+		return nil, err
 	}
 
-	return Shortener{
+	return &Shortener{
 		Rep:     rep,
 		BaseURL: baseURL,
 	}, nil
 }
 
 // NewDBShortener - Конструктор Shortener для хранения данных в базе данных
-func NewDBShortener(baseURL string, db *sql.DB) Shortener {
-	return Shortener{
+func NewDBShortener(baseURL string, db *sql.DB) *Shortener {
+	return &Shortener{
 		Rep:     indb.New(db),
 		BaseURL: baseURL,
 	}
@@ -128,4 +173,9 @@ func (s Shortener) getNewPrefix() string {
 // GetURLFromPrefix - Получение сокращённого url по префиксу
 func (s Shortener) GetURLFromPrefix(prefix string) (string, error) {
 	return url.JoinPath(s.BaseURL, prefix)
+}
+
+// Close - закрытие соединений
+func (s Shortener) Close() error {
+	return s.Rep.Close()
 }

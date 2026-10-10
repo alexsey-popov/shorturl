@@ -92,7 +92,7 @@ func TestHandlePost(t *testing.T) {
 
 	cfg := config.NewEmpty()
 
-	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestHandlePost(t *testing.T) {
 func TestHandlePostJson(t *testing.T) {
 	cfg := config.NewEmpty()
 
-	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 	type want struct {
 		statusCode  int
@@ -217,7 +217,7 @@ func TestHandlePostJson(t *testing.T) {
 func TestHandleGet(t *testing.T) {
 	cfg := config.NewEmpty()
 
-	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 	// Добавляем в shortener заранее известную пару prefix => originalURL
 	prefix, originalURL, userID := "positive1", "https://example.com/positive1", ""
@@ -307,7 +307,7 @@ func TestHandlerAudit(t *testing.T) {
 	spy := &fakeObserver{}
 	p.Register(spy)
 
-	h := NewHandler(l, service.NewMemoryShortener(cfg.BaseURL), nil, p)
+	h := NewHandler(l, service.NewMemoryShortener(cfg.BaseURL), p)
 
 	// 1. Test POST /
 	r1 := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/test1"))
@@ -396,7 +396,7 @@ func (m *mockRepository) FindFromUserID(userID string) ([]model.URL, error) {
 
 func TestHandlePostBatch(t *testing.T) {
 	cfg := config.NewEmpty()
-	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 	t.Run("positive #1", func(t *testing.T) {
 		body := `[{"correlation_id": "1", "original_url": "https://example.com/batch-1"}]`
@@ -496,7 +496,7 @@ func TestHandlePostBatch(t *testing.T) {
 
 func TestHandleFails(t *testing.T) {
 	cfg := config.NewEmpty()
-	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 	r := httptest.NewRequest(http.MethodGet, "/fails", nil)
 	w := httptest.NewRecorder()
@@ -514,7 +514,7 @@ func TestHandleGetPing(t *testing.T) {
 	cfg := config.NewEmpty()
 
 	t.Run("success ping", func(t *testing.T) {
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 		r := httptest.NewRequest(http.MethodGet, "/ping", nil)
 		w := httptest.NewRecorder()
 
@@ -534,7 +534,7 @@ func TestHandleGetPing(t *testing.T) {
 			Rep:     mockRep,
 			BaseURL: cfg.BaseURL,
 		}
-		h := NewHandler(zap.S(), shortener, nil, nil)
+		h := NewHandler(zap.S(), &shortener, nil)
 		r := httptest.NewRequest(http.MethodGet, "/ping", nil)
 		w := httptest.NewRecorder()
 
@@ -552,7 +552,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 	userID := "user-123"
 
 	t.Run("positive - found urls", func(t *testing.T) {
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 		err := h.shortener.Rep.Set(model.New("pref1", "https://example.com/1", userID))
 		require.NoError(t, err)
 
@@ -571,7 +571,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 	})
 
 	t.Run("positive - no urls (204)", func(t *testing.T) {
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
 		ctx := auth.SetUserID(r.Context(), userID)
@@ -587,7 +587,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 	})
 
 	t.Run("negative - unauthorized", func(t *testing.T) {
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
 		w := httptest.NewRecorder()
@@ -607,7 +607,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 			Rep:     mockRep,
 			BaseURL: cfg.BaseURL,
 		}
-		h := NewHandler(zap.S(), shortener, nil, nil)
+		h := NewHandler(zap.S(), &shortener, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
 		ctx := auth.SetUserID(r.Context(), userID)
@@ -629,7 +629,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 
 	t.Run("positive - accepted deletion task", func(t *testing.T) {
 		delCh := make(chan DeleteTask, 1)
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), delCh, nil)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 		body := `["pref1", "pref2"]`
 		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
@@ -637,7 +637,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
-		h.HandleDeleteUserURLs(w, r)
+		h.HandleDeleteUserURLs(delCh)(w, r)
 
 		res := w.Result()
 		defer res.Body.Close()
@@ -654,7 +654,8 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 	})
 
 	t.Run("negative - empty batch", func(t *testing.T) {
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		delCh := make(chan DeleteTask, 1)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 		body := `[]`
 		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
@@ -662,7 +663,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
-		h.HandleDeleteUserURLs(w, r)
+		h.HandleDeleteUserURLs(delCh)(w, r)
 
 		res := w.Result()
 		defer res.Body.Close()
@@ -671,12 +672,13 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 	})
 
 	t.Run("negative - unauthorized", func(t *testing.T) {
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		delCh := make(chan DeleteTask, 1)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 		body := `["pref1"]`
 		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
 		w := httptest.NewRecorder()
-		h.HandleDeleteUserURLs(w, r)
+		h.HandleDeleteUserURLs(delCh)(w, r)
 
 		res := w.Result()
 		defer res.Body.Close()
@@ -685,7 +687,8 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 	})
 
 	t.Run("negative - invalid json", func(t *testing.T) {
-		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+		delCh := make(chan DeleteTask, 1)
+		h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 
 		body := `invalid-json`
 		r := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(body))
@@ -693,7 +696,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 		r = r.WithContext(ctx)
 
 		w := httptest.NewRecorder()
-		h.HandleDeleteUserURLs(w, r)
+		h.HandleDeleteUserURLs(delCh)(w, r)
 
 		res := w.Result()
 		defer res.Body.Close()
@@ -704,7 +707,7 @@ func TestHandleDeleteUserURLs(t *testing.T) {
 
 func BenchmarkHandlePost(b *testing.B) {
 	cfg := config.NewEmpty()
-	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 	b.ResetTimer()
 	for b.Loop() {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com/benchmark"))
@@ -727,7 +730,7 @@ func BenchmarkHandleGet(b *testing.B) {
 		Rep:     rep,
 		BaseURL: cfg.BaseURL,
 	}
-	h := NewHandler(zap.S(), shortener, nil, nil)
+	h := NewHandler(zap.S(), &shortener, nil)
 
 	r := httptest.NewRequest(http.MethodGet, "/bench1", nil)
 	rctx := chi.NewRouteContext()
@@ -743,7 +746,7 @@ func BenchmarkHandleGet(b *testing.B) {
 
 func BenchmarkHandlePostParallel(b *testing.B) {
 	cfg := config.NewEmpty()
-	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil, nil)
+	h := NewHandler(zap.S(), service.NewMemoryShortener(cfg.BaseURL), nil)
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -768,7 +771,7 @@ func BenchmarkHandleGetParallel(b *testing.B) {
 		Rep:     rep,
 		BaseURL: cfg.BaseURL,
 	}
-	h := NewHandler(zap.S(), shortener, nil, nil)
+	h := NewHandler(zap.S(), &shortener, nil)
 
 	r := httptest.NewRequest(http.MethodGet, "/bench-par", nil)
 	rctx := chi.NewRouteContext()

@@ -143,3 +143,41 @@ func New(db *sql.DB) *InDB {
 		db: db,
 	}
 }
+
+// GetUrlsCount - получение общего количества сокращённых ссылок
+func (rep *InDB) GetUrlsCount() (int, error) {
+	row := rep.db.QueryRow("SELECT COUNT(*) as count FROM urls")
+
+	var count int
+
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("ошибка при получении числа пользователей: %w", err)
+	}
+
+	return count, nil
+}
+
+// GetUrlsCount - получение общего количества пользователей
+func (rep *InDB) GetUsersCount() (int, error) {
+	row := rep.db.QueryRow("SELECT COUNT(DISTINCT user_id) as count FROM urls")
+
+	var count int
+
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("ошибка при получении числа пользователей: %w", err)
+	}
+
+	return count, nil
+}
+
+// Close - закрытие соединения с бд
+func (rep *InDB) Close() error {
+	err := rep.db.Close()
+	if err != nil {
+		err = fmt.Errorf("ошибка при закрытии соединения с бд: %w", err)
+	}
+
+	return err
+}
