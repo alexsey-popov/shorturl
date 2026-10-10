@@ -10,6 +10,10 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // ctxKey - Специальный тип для использования в контексте
@@ -173,5 +177,63 @@ func NewHTTPMiddleware(secret string, tokenExp time.Duration, sugar *zap.Sugared
 			h.ServeHTTP(w, r.WithContext(ctx))
 
 		})
+	}
+}
+
+// NewGRPCUnaryInterceptor возвращает unary interceptor для аутентификации пользователя в gRPC сервере через metadata
+func NewGRPCUnaryInterceptor(secret string, tokenExp time.Duration, sugar *zap.SugaredLogger) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		var (
+			ut         UserToken
+			isNewToken bool
+		)
+
+		md, ok := metadata.FromIncomingContext(ctx)
+		var authHeader string
+		if ok {
+			values := md.Get("authorization")
+			if len(values) > 0 {
+				authHeader = values[0]
+			}
+		}
+
+		if authHeader == "" {
+			var err error
+			ut, err = NewUserToken(uuid.NewString(), secret, tokenExp)
+			if err != nil {
+				sugar.Errorf("ошибка при создании токена: %v", err)
+				return nil, status.Error(codes.Internal, "внутренняя ошибка")
+			}
+			isNewToken = true
+		} else {
+			var err error
+			ut, err = getUserToken(authHeader, secret)
+			if err != nil {
+				if errors.Is(err, ErrEmptyUserID) {
+					return nil, status.Error(codes.Unauthenticated, "неавторизован")
+				}
+
+				// Иначе создаём новый
+				ut, err = NewUserToken(uuid.NewString(), secret, tokenExp)
+				if err != nil {
+					sugar.Errorf("ошибка при создании токена: %v", err)
+					return nil, status.Error(codes.Internal, "внутренняя ошибка")
+				}
+				isNewToken = true
+			}
+		}
+
+		if isNewToken {
+			_ = grpc.SetHeader(ctx, metadata.Pairs("authorization", ut.Token))
+		}
+
+		ctx = SetUserID(ctx, ut.UserID)
+
+		return handler(ctx, req)
 	}
 }

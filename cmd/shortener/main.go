@@ -76,5 +76,5 @@ func main() {
 		sugar.Errorf("ошибка при остановке сервиса: %v", err)
 	}
 
-	sugar.Infoln("Сервер успешно остановлен")
+	sugar.Infoln("Сервер(REST) успешно остановлен")
 }
