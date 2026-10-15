@@ -22,7 +22,7 @@ func ExampleNewHandler() {
 	cfg := config.NewEmpty()
 	shortener := service.NewMemoryShortener(cfg.BaseURL)
 
-	h := handler.NewHandler(logger, shortener, nil, nil)
+	h := handler.NewHandler(logger, shortener, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
 	req.Header.Set("Content-Type", contenttype.Plain)
@@ -49,7 +49,7 @@ func ExampleHandler_HandlePostJSON() {
 	cfg := config.NewEmpty()
 	shortener := service.NewMemoryShortener(cfg.BaseURL)
 
-	h := handler.NewHandler(logger, shortener, nil, nil)
+	h := handler.NewHandler(logger, shortener, nil)
 
 	reqBody := `{"url":"https://example.com/json"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(reqBody))

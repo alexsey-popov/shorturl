@@ -3,9 +3,11 @@ package audit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/alexsey-popov/shorturl/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -53,6 +55,31 @@ func NewPublisher(l *zap.SugaredLogger) *Publisher {
 		workers: make([]*observerWorker, 0),
 		log:     l,
 	}
+}
+
+// NewPublisherFromConfig - Создание посредника и регистрация наблюдателей исходя из данных конфига
+func NewPublisherFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*Publisher, error) {
+	// Посредник
+	p := NewPublisher(sugar)
+
+	// Подключаем аудит в файл
+	if cfg.AuditFile != "" {
+		fileObserver, err := NewFileObserver(sugar, cfg.AuditFile)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка при создании наблюдателя файла аудита: %w", err)
+		}
+		p.Register(fileObserver)
+		sugar.Infoln("Аудит в файл включен")
+	}
+
+	// Подключаем аудит по апи
+	if cfg.AuditURL != "" {
+		urlObserver := NewURLObserver(sugar, cfg.AuditURL)
+		p.Register(urlObserver)
+		sugar.Infoln("Аудит по URL включен")
+	}
+
+	return p, nil
 }
 
 // Register - Регистрация наблюдателя

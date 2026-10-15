@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 const testSecret = "test-secret-key"
@@ -149,5 +154,57 @@ func TestNewHTTPMiddleware(t *testing.T) {
 		handler.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+}
+
+// TestNewGRPCUnaryInterceptor - тестирование gRPC Unary Interceptor для аутентификации
+func TestNewGRPCUnaryInterceptor(t *testing.T) {
+	sugar := zap.NewNop().Sugar()
+	interceptor := NewGRPCUnaryInterceptor(testSecret, time.Hour, sugar)
+
+	dummyHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		userID, ok := GetUserID(ctx)
+		if !ok || userID == "" {
+			return nil, status.Error(codes.Unauthenticated, "empty user id")
+		}
+		return userID, nil
+	}
+
+	info := &grpc.UnaryServerInfo{
+		FullMethod: "/grpc.ShortenerService/ShortenURL",
+	}
+
+	t.Run("positive - запрос без metadata создаёт новый токен", func(t *testing.T) {
+		ctx := context.Background()
+		resp, err := interceptor(ctx, "req", info, dummyHandler)
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	})
+
+	t.Run("positive - запрос с валидным токеном", func(t *testing.T) {
+		expectedUserID := "user-789"
+		ut, err := NewUserToken(expectedUserID, testSecret, time.Hour)
+		require.NoError(t, err)
+
+		md := metadata.Pairs("authorization", ut.Token)
+		ctx := metadata.NewIncomingContext(context.Background(), md)
+
+		resp, err := interceptor(ctx, "req", info, dummyHandler)
+		require.NoError(t, err)
+		assert.Equal(t, expectedUserID, resp)
+	})
+
+	t.Run("negative - запрос с токеном с пустым user_id", func(t *testing.T) {
+		token, err := buildJWTString(testSecret, time.Now().Add(time.Hour), "")
+		require.NoError(t, err)
+
+		md := metadata.Pairs("authorization", token)
+		ctx := metadata.NewIncomingContext(context.Background(), md)
+
+		_, err = interceptor(ctx, "req", info, dummyHandler)
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.Unauthenticated, st.Code())
 	})
 }
