@@ -29,14 +29,9 @@ type Server struct {
 func NewServer(
 	shortener *service.Shortener,
 	cfg *config.Server,
+	auditPublisher *audit.Publisher,
 	sugar *zap.SugaredLogger,
 ) (*Server, error) {
-	// Создаём посредника для аудита
-	auditPublisher, err := audit.NewPublisherFromConfig(cfg, sugar)
-	if err != nil {
-		return nil, err
-	}
-
 	// Создаём объект обработчика запросов
 	h := handler.NewHandler(sugar, shortener, auditPublisher)
 

@@ -34,13 +34,9 @@ type Server struct {
 func NewServer(
 	shortener *service.Shortener,
 	cfg *config.Server,
+	auditPublisher *audit.Publisher,
 	sugar *zap.SugaredLogger,
 ) (*Server, error) {
-	auditPublisher, err := audit.NewPublisherFromConfig(cfg, sugar)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка при создании посредника аудита: %w", err)
-	}
-
 	var opts []grpc.ServerOption
 
 	// Поддержка TLS в соответствии с конфигурацией

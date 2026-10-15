@@ -6,6 +6,7 @@ import (
 
 	"github.com/alexsey-popov/shorturl/internal/api/grpcsrv"
 	"github.com/alexsey-popov/shorturl/internal/api/rest"
+	"github.com/alexsey-popov/shorturl/internal/audit"
 	"github.com/alexsey-popov/shorturl/internal/config"
 	"github.com/alexsey-popov/shorturl/internal/service"
 	"go.uber.org/zap"
@@ -27,14 +28,20 @@ func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*API, error) {
 		return nil, fmt.Errorf("ошибка при создании слоя бизнес-логики: %w", err)
 	}
 
+	// Создаём посредника для аудита
+	auditPublisher, err := audit.NewPublisherFromConfig(cfg, sugar)
+	if err != nil {
+		return nil, err
+	}
+
 	// Создаём сервер для REST API
-	r, err := rest.NewServer(shortener, cfg, sugar)
+	r, err := rest.NewServer(shortener, cfg, auditPublisher, sugar)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при создании REST сервера: %w", err)
 	}
 
 	// Создаём сервер для gRPC API
-	g, err := grpcsrv.NewServer(shortener, cfg, sugar)
+	g, err := grpcsrv.NewServer(shortener, cfg, auditPublisher, sugar)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при создании gRPC сервера: %w", err)
 	}
