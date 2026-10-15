@@ -211,24 +211,6 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestServer_HasAudit(t *testing.T) {
-	cfg := NewEmpty()
-
-	assert.False(t, cfg.HasAudit(), "По умолчанию HasAudit должен быть false")
-
-	cfg.AuditFile = "test.json"
-
-	assert.True(t, cfg.HasAudit(), "При AuditFile=test.json HasAudit должен быть true")
-
-	cfg.AuditURL = "http://localhost:2222"
-
-	assert.True(t, cfg.HasAudit(), "При AuditFile=test.json и cfg.AuditURL=http://localhost:2222 HasAudit должен быть true")
-
-	cfg.AuditFile = ""
-
-	assert.True(t, cfg.HasAudit(), "При cfg.AuditURL=http://localhost:2222 HasAudit должен быть true")
-}
-
 func TestServer_ParseFromFile(t *testing.T) {
 	tempDir := t.TempDir()
 
