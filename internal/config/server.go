@@ -34,6 +34,8 @@ const (
 	EnvConfigFile = "CONFIG"
 	// Доверенная подсеть
 	EnvTrustedSubnet = "TRUSTED_SUBNET"
+	// Адрес gRPC сервера
+	EnvGRPCNetAddress = "GRPC_ADDRESS"
 )
 
 // Консольные флаги
@@ -60,6 +62,8 @@ const (
 	FlagConfigFile = "c"
 	// Доверенная подсеть
 	FlagTrustedSubnet = "t"
+	// Адрес gRPC сервера
+	FlagGRPCNetAddress = "grpc-a"
 )
 
 // Параметры по умолчанию
@@ -72,20 +76,23 @@ const (
 	DefaultTokenExp = time.Hour * 3
 	// Поддержка HTTPS
 	DefaultEnableHTTPS = false
+	// FlagGRPCNetAddress - Адрес gRPC севрера
+	DefaultGRPCNetAddress = "localhost:3200"
 )
 
 // Server - Структура для хранения конфигурации
 type Server struct {
-	BaseURL       string        `json:"base_url"`
-	NetAddress    string        `json:"address"`
-	FilePath      string        `json:"store_file"`
-	DSN           string        `json:"database_dsn"`
-	TokenExp      time.Duration `json:"token_exp"`
-	SecretKey     string        `json:"secret_key"`
-	AuditFile     string        `json:"audit_file"`
-	AuditURL      string        `json:"audit_url"`
-	EnableHTTPS   bool          `json:"enable_https"`
-	TrustedSubnet string        `json:"trusted_subnet"`
+	BaseURL        string        `json:"base_url"`
+	NetAddress     string        `json:"address"`
+	FilePath       string        `json:"store_file"`
+	DSN            string        `json:"database_dsn"`
+	TokenExp       time.Duration `json:"token_exp"`
+	SecretKey      string        `json:"secret_key"`
+	AuditFile      string        `json:"audit_file"`
+	AuditURL       string        `json:"audit_url"`
+	EnableHTTPS    bool          `json:"enable_https"`
+	TrustedSubnet  string        `json:"trusted_subnet"`
+	GRPCNetAddress string        `json:"grpc_address"`
 }
 
 // serverCfg - Объект конфига для сервера
@@ -94,16 +101,17 @@ var serverCfg *Server
 // NewEmpty - Конфиг заполненный дефолтными значениями
 func NewEmpty() *Server {
 	return &Server{
-		BaseURL:       DefaultBaseURL,
-		NetAddress:    DefaultNetAddress,
-		FilePath:      "",
-		DSN:           "",
-		TokenExp:      DefaultTokenExp,
-		SecretKey:     "",
-		AuditFile:     "",
-		AuditURL:      "",
-		EnableHTTPS:   DefaultEnableHTTPS,
-		TrustedSubnet: "",
+		BaseURL:        DefaultBaseURL,
+		NetAddress:     DefaultNetAddress,
+		FilePath:       "",
+		DSN:            "",
+		TokenExp:       DefaultTokenExp,
+		SecretKey:      "",
+		AuditFile:      "",
+		AuditURL:       "",
+		EnableHTTPS:    DefaultEnableHTTPS,
+		TrustedSubnet:  "",
+		GRPCNetAddress: DefaultGRPCNetAddress,
 	}
 }
 
@@ -123,12 +131,6 @@ func NewParsed() (*Server, error) {
 	}
 
 	return serverCfg, err
-}
-
-// TODO: Скорее всего нужно будет удалить
-// HasAudit - производится ли аудит запросов
-func (s Server) HasAudit() bool {
-	return s.AuditFile != "" || s.AuditURL != ""
 }
 
 // Parse - Парсим флаги и переменные окружения
@@ -154,6 +156,7 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 	preFS.StringVar(&dummyStr, FlagAuditURL, "", "")
 	preFS.BoolVar(&dummyBool, FlagEnableHTTPS, false, "")
 	preFS.StringVar(&dummyStr, FlagTrustedSubnet, "", "")
+	preFS.StringVar(&dummyStr, FlagGRPCNetAddress, "", "")
 
 	if err := preFS.Parse(args); err != nil {
 		return fmt.Errorf("ошибка при парсинге аргументов командной строки: %w", err)
@@ -186,6 +189,7 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 	fs.StringVar(&s.AuditURL, FlagAuditURL, s.AuditURL, "URL для логов аудита")
 	fs.BoolVar(&s.EnableHTTPS, FlagEnableHTTPS, s.EnableHTTPS, "Поддержка HTTPS")
 	fs.StringVar(&s.TrustedSubnet, FlagTrustedSubnet, s.TrustedSubnet, "Доверенная подсеть")
+	fs.StringVar(&s.GRPCNetAddress, FlagGRPCNetAddress, s.GRPCNetAddress, "Адрес gRPC сервера")
 
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("ошибка при парсинге аргументов командной строки: %w", err)
@@ -247,6 +251,11 @@ func (s *Server) Parse(args []string, lookupFunc func(string) (string, bool)) er
 	// Доверенная подсеть
 	if subnet, ok := lookupFunc(EnvTrustedSubnet); ok {
 		s.TrustedSubnet = subnet
+	}
+
+	// URL для логов аудита
+	if addr, ok := lookupFunc(EnvGRPCNetAddress); ok {
+		s.GRPCNetAddress = addr
 	}
 
 	return nil

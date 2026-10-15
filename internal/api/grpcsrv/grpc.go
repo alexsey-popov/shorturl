@@ -71,15 +71,15 @@ func NewServer(
 func (s *Server) ListenAndServe() error {
 	// Определяем порт для сервера
 	// В задании инкремента не было указано конкретного порта, поэтому захардкодил тот, что был в последних уроках
-	listen, err := net.Listen("tcp", ":3200")
+	listen, err := net.Listen("tcp", s.cfg.GRPCNetAddress)
 	if err != nil {
 		return fmt.Errorf("не удалось прослушать порт для gRPC сервера: %w", err)
 	}
 
 	if s.cfg.EnableHTTPS {
-		s.sugar.Infof("Сервер(gRPC) запущен с TLS")
+		s.sugar.Infof("Сервер(gRPC) запущен с TLS по адресу %s", s.cfg.GRPCNetAddress)
 	} else {
-		s.sugar.Infof("Сервер(gRPC) запущен")
+		s.sugar.Infof("Сервер(gRPC) запущен по адресу %s", s.cfg.GRPCNetAddress)
 	}
 
 	if err = s.server.Serve(listen); err != nil {

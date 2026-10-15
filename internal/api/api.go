@@ -49,7 +49,6 @@ func NewFromConfig(cfg *config.Server, sugar *zap.SugaredLogger) (*API, error) {
 
 // Close - Закрытие всех подключений
 func (a *API) Close() error {
-	// TODO: ДОПИШИ
 	return errors.Join(
 		// Закрываем REST сервер
 		a.rest.Close(),
