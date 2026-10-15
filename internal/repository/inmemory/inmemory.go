@@ -240,8 +240,8 @@ func fanIn[T any](chs []chan T) chan T {
 	return outCh
 }
 
-// GetUrlsCount - получение общего количества сокращённых ссылок
-func (rep *InMemory) GetUrlsCount() (int, error) {
+// GetURLsCount - получение общего количества сокращённых ссылок
+func (rep *InMemory) GetURLsCount() (int, error) {
 	// Защищаем map от записи в момент, когда мы получаем количество записей
 	rep.mu.RLock()
 	defer rep.mu.RUnlock()
@@ -249,7 +249,7 @@ func (rep *InMemory) GetUrlsCount() (int, error) {
 	return len(rep.data), nil
 }
 
-// GetUrlsCount - получение общего количества пользователей
+// GetUsersCount - получение общего количества пользователей
 func (rep *InMemory) GetUsersCount() (int, error) {
 	// Защищаем map от записи в момент, когда мы читаем банные из мапы
 	rep.mu.RLock()

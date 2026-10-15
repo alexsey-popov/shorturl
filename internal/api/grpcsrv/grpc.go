@@ -41,41 +41,40 @@ func NewServer(
 		return nil, fmt.Errorf("ошибка при создании посредника аудита: %w", err)
 	}
 
+	var opts []grpc.ServerOption
+
+	// Поддержка TLS в соответствии с конфигурацией
+	if cfg.EnableHTTPS {
+		creds, err := credentials.NewServerTLSFromFile("cert.pem", "key.pem")
+		if err != nil {
+			return nil, fmt.Errorf("ошибка при загрузке TLS сертификата для gRPC сервера: %w", err)
+		}
+		opts = append(opts, grpc.Creds(creds))
+	}
+
+	// Подключаем интерцептор аутентификации через metadata
+	opts = append(opts, grpc.UnaryInterceptor(auth.NewGRPCUnaryInterceptor(cfg.SecretKey, cfg.TokenExp, sugar)))
+
+	// создаём gRPC-сервер с опциями
+	server := grpc.NewServer(opts...)
+
 	return &Server{
 		shortener:      shortener,
 		cfg:            cfg,
 		sugar:          sugar,
 		auditPublisher: auditPublisher,
+		server:         server,
 	}, nil
 }
 
 // ListenAndServe - запуск gRPC сервера
-func ListenAndServe(s *Server) error {
+func (s *Server) ListenAndServe() error {
 	// Определяем порт для сервера
 	// В задании инкремента не было указано конкретного порта, поэтому захардкодил тот, что был в последних уроках
 	listen, err := net.Listen("tcp", ":3200")
 	if err != nil {
 		return fmt.Errorf("не удалось прослушать порт для gRPC сервера: %w", err)
 	}
-
-	var opts []grpc.ServerOption
-
-	// Поддержка TLS в соответствии с конфигурацией
-	if s.cfg.EnableHTTPS {
-		creds, err := credentials.NewServerTLSFromFile("cert.pem", "key.pem")
-		if err != nil {
-			return fmt.Errorf("ошибка при загрузке TLS сертификата для gRPC сервера: %w", err)
-		}
-		opts = append(opts, grpc.Creds(creds))
-	}
-
-	// Подключаем интерцептор аутентификации через metadata
-	opts = append(opts, grpc.UnaryInterceptor(auth.NewGRPCUnaryInterceptor(s.cfg.SecretKey, s.cfg.TokenExp, s.sugar)))
-
-	// создаём gRPC-сервер с опциями
-	s.server = grpc.NewServer(opts...)
-	// регистрируем сервис
-	RegisterShortenerServiceServer(s.server, s)
 
 	if s.cfg.EnableHTTPS {
 		s.sugar.Infof("Сервер(gRPC) запущен с TLS")

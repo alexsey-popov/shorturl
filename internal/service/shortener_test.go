@@ -71,7 +71,7 @@ func (m *mockRepository) Ping() error {
 	return nil
 }
 
-func (m *mockRepository) GetUrlsCount() (int, error) {
+func (m *mockRepository) GetURLsCount() (int, error) {
 	if m.getUrlsCountFunc != nil {
 		return m.getUrlsCountFunc()
 	}

@@ -70,7 +70,7 @@ func (a *API) ListenAndServe() error {
 
 	// Запускаем gRPC сервер
 	go func() {
-		srvErr <- grpcsrv.ListenAndServe(a.grpc)
+		srvErr <- a.grpc.ListenAndServe()
 	}()
 
 	// Ожидаем завершения серверов

@@ -32,6 +32,7 @@ func HTTPMiddleware(sugar *zap.SugaredLogger, cidr string) func(http.Handler) ht
 			// Если IP не входит в подсеть - выводим ошибку
 			if !ipNet.Contains(ip) {
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+				return
 			}
 
 			handler.ServeHTTP(w, r)

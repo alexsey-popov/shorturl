@@ -144,8 +144,8 @@ func New(db *sql.DB) *InDB {
 	}
 }
 
-// GetUrlsCount - получение общего количества сокращённых ссылок
-func (rep *InDB) GetUrlsCount() (int, error) {
+// GetURLsCount - получение общего количества сокращённых ссылок
+func (rep *InDB) GetURLsCount() (int, error) {
 	row := rep.db.QueryRow("SELECT COUNT(*) as count FROM urls")
 
 	var count int
@@ -158,7 +158,7 @@ func (rep *InDB) GetUrlsCount() (int, error) {
 	return count, nil
 }
 
-// GetUrlsCount - получение общего количества пользователей
+// GetUsersCount - получение общего количества пользователей
 func (rep *InDB) GetUsersCount() (int, error) {
 	row := rep.db.QueryRow("SELECT COUNT(DISTINCT user_id) as count FROM urls")
 

@@ -14,7 +14,7 @@ func (s Shortener) GetStats() (stats Stats, err error) {
 	}
 	stats.Users = users
 
-	urls, err := s.Rep.GetUrlsCount()
+	urls, err := s.Rep.GetURLsCount()
 	if err != nil {
 		return
 	}

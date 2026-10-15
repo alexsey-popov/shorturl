@@ -157,12 +157,12 @@ func (rep *InFile) Ping() error {
 	return nil
 }
 
-// GetUrlsCount - получение общего количества сокращённых ссылок
-func (rep *InFile) GetUrlsCount() (int, error) {
-	return rep.data.GetUrlsCount()
+// GetURLsCount - получение общего количества сокращённых ссылок
+func (rep *InFile) GetURLsCount() (int, error) {
+	return rep.data.GetURLsCount()
 }
 
-// GetUrlsCount - получение общего количества пользователей
+// GetUsersCount - получение общего количества пользователей
 func (rep *InFile) GetUsersCount() (int, error) {
 	return rep.data.GetUsersCount()
 }
